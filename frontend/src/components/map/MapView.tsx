@@ -107,11 +107,12 @@ function getCategoryIconSvg(category: string, isSelected: boolean): string {
     innerSymbol = `<path d="m2 7 10-5 10 5M4 10v10M8 10v10M12 10v10M16 10v10M20 10v10M2 20h20" stroke="${iconColor}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>`;
   }
 
-  const width = isSelected ? 34 : 28;
-  const height = isSelected ? 44 : 36;
+  // Kích thước nhỏ gọn, tinh tế hơn (Điểm thường: 22x30px, Điểm chọn: 26x35px)
+  const width = isSelected ? 26 : 22;
+  const height = isSelected ? 35 : 30;
   const dropShadow = isSelected
-    ? "drop-shadow(0 4px 10px rgba(37,99,235,0.5))"
-    : "drop-shadow(0 2px 5px rgba(0,0,0,0.3))";
+    ? "drop-shadow(0 3px 6px rgba(37,99,235,0.45))"
+    : "drop-shadow(0 1.5px 3px rgba(0,0,0,0.25))";
 
   return `
     <div style="filter: ${dropShadow}; cursor: pointer; transition: transform 0.2s ease;">
@@ -149,8 +150,8 @@ export default function MapView({
 
   const createIcon = (category: string, isSelected: boolean) => {
     if (!leafletLib) return undefined;
-    const width = isSelected ? 34 : 28;
-    const height = isSelected ? 44 : 36;
+    const width = isSelected ? 26 : 22;
+    const height = isSelected ? 35 : 30;
     return leafletLib.divIcon({
       className: `aria-cat-pin-${isSelected ? "active" : "normal"}`,
       html: getCategoryIconSvg(category, isSelected),
