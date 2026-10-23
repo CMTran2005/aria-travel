@@ -1,0 +1,14 @@
+fastapi>=0.110.0
+uvicorn[standard]>=0.28.0
+pydantic>=2.6.0
+pydantic-settings>=2.2.0
+supabase>=2.4.0
+langchain>=0.1.16
+langchain-groq>=0.1.2
+langchain-openai>=0.1.3
+ortools>=9.9.3963
+scikit-learn>=1.4.0
+numpy>=1.26.0
+requests>=2.31.0
+python-dotenv>=1.0.1
+httpx>=0.27.0
