@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from app.routers import trips, pois
 
 app = FastAPI(
     title="ARIA API",
@@ -15,6 +16,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Include Routers
+app.include_router(trips.router, prefix="/api")
+app.include_router(pois.router, prefix="/api")
 
 @app.get("/health")
 def health_check():
