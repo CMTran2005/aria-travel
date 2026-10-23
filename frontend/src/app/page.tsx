@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { fetchPOIs, updatePOILocation } from "@/lib/api";
 import { User } from "@supabase/supabase-js";
 import dynamic from "next/dynamic";
+import { Star, Clock } from "lucide-react";
 import { POI } from "@/components/map/MapView";
 
 const MapView = dynamic(() => import("@/components/map/MapView"), {
@@ -177,18 +178,20 @@ export default function HomePage() {
                     <h3 className="font-bold text-slate-900 text-base">
                       {poi.name}
                     </h3>
-                    <span className="text-xs font-bold text-amber-600 whitespace-nowrap">
-                      ★ {poi.rating || 4.5}
-                    </span>
+                    <div className="flex items-center gap-1 text-xs font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
+                      <Star className="w-3 h-3 fill-amber-400 text-amber-500" />
+                      <span>{poi.rating || 4.5}</span>
+                    </div>
                   </div>
                   <p className="text-xs text-slate-500 mt-1 line-clamp-1">
                     {poi.address || "Hội An, Quảng Nam"}
                   </p>
                   <div className="mt-3 flex items-center justify-between text-xs text-slate-600">
-                    <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-medium">
-                      ⏱ {poi.avg_duration_minutes || 45} phút
+                    <span className="flex items-center gap-1 text-slate-500">
+                      <Clock className="w-3.5 h-3.5 text-slate-400" />
+                      <span>{poi.avg_duration_minutes || 45} phút</span>
                     </span>
-                    <span className="font-semibold text-emerald-700">
+                    <span className="font-semibold text-slate-900">
                       {poi.avg_cost_usd === 0 ? "Miễn phí" : `$${poi.avg_cost_usd}`}
                     </span>
                   </div>

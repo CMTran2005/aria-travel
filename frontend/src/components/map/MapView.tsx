@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import "leaflet/dist/leaflet.css";
+import { MapPin, Crosshair, Star, Clock, DollarSign, Info } from "lucide-react";
 
 // Dynamic imports to prevent SSR window issues
 const MapContainer = dynamic(
@@ -91,56 +92,56 @@ export default function MapView({
   useEffect(() => {
     setMounted(true);
     import("leaflet").then((L) => {
-      // 1. Sleek Minimalist Needle Pin
+      // 1. Sleek Minimalist Needle Pin (SVG sạch sẽ, đơn sắc, chuyên nghiệp)
       const normal = L.divIcon({
         className: "aria-pin-clean",
         html: `
-          <div style="position: relative; width: 12px; height: 24px; display: flex; flex-direction: column; align-items: center; cursor: pointer;">
+          <div style="position: relative; width: 14px; height: 26px; display: flex; flex-direction: column; align-items: center; cursor: pointer;">
             <div style="
               width: 10px;
               height: 10px;
               border-radius: 50%;
-              background: #2563eb;
+              background: #0f172a;
               border: 2px solid #ffffff;
-              box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+              box-shadow: 0 1px 4px rgba(0,0,0,0.25);
             "></div>
             <div style="
               width: 1.5px;
               height: 14px;
+              background: #0f172a;
+              border-radius: 1px;
+            "></div>
+          </div>
+        `,
+        iconSize: [14, 26],
+        iconAnchor: [7, 26],
+        popupAnchor: [0, -26],
+      });
+
+      // 2. Selected Pin (Màu xanh thương hiệu sắc nét khi active)
+      const active = L.divIcon({
+        className: "aria-pin-active",
+        html: `
+          <div style="position: relative; width: 16px; height: 32px; display: flex; flex-direction: column; align-items: center; cursor: pointer;">
+            <div style="
+              width: 12px;
+              height: 12px;
+              border-radius: 50%;
+              background: #2563eb;
+              border: 2px solid #ffffff;
+              box-shadow: 0 0 10px rgba(37,99,235,0.5);
+            "></div>
+            <div style="
+              width: 2px;
+              height: 18px;
               background: #2563eb;
               border-radius: 1px;
             "></div>
           </div>
         `,
-        iconSize: [12, 24],
-        iconAnchor: [6, 24],
-        popupAnchor: [0, -24],
-      });
-
-      // 2. Selected Pin (Màu đỏ hồng nổi bật)
-      const active = L.divIcon({
-        className: "aria-pin-active",
-        html: `
-          <div style="position: relative; width: 16px; height: 30px; display: flex; flex-direction: column; align-items: center; cursor: pointer;">
-            <div style="
-              width: 13px;
-              height: 13px;
-              border-radius: 50%;
-              background: #e11d48;
-              border: 2.5px solid #ffffff;
-              box-shadow: 0 0 10px rgba(225,29,72,0.6);
-            "></div>
-            <div style="
-              width: 2px;
-              height: 17px;
-              background: #e11d48;
-              border-radius: 1px;
-            "></div>
-          </div>
-        `,
-        iconSize: [16, 30],
-        iconAnchor: [8, 30],
-        popupAnchor: [0, -30],
+        iconSize: [16, 32],
+        iconAnchor: [8, 32],
+        popupAnchor: [0, -32],
       });
 
       setNormalIcon(normal);
@@ -196,28 +197,30 @@ export default function MapView({
       <div className="absolute top-4 right-4 z-[1000] flex items-center gap-2 bg-white/95 backdrop-blur-md px-3.5 py-2 rounded-xl border border-slate-200 shadow-lg">
         {selectedPOI ? (
           <>
-            <span className="text-xs font-semibold text-slate-700 hidden sm:inline">
-              📍 <span className="text-blue-600 font-bold">{selectedPOI.name}</span>
-            </span>
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 hidden sm:flex">
+              <MapPin className="w-3.5 h-3.5 text-blue-600" />
+              <span className="text-slate-900 font-bold max-w-[140px] truncate">{selectedPOI.name}</span>
+            </div>
             <button
               onClick={() => setIsPickingMode(!isPickingMode)}
-              className={`text-xs font-bold px-3 py-1.5 rounded-lg transition shadow-sm ${
+              className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition shadow-sm ${
                 isPickingMode
                   ? "bg-rose-600 text-white animate-pulse"
-                  : "bg-blue-600 hover:bg-blue-700 text-white"
+                  : "bg-slate-900 hover:bg-slate-800 text-white"
               }`}
             >
-              {isPickingMode ? "🎯 Click vào Map để gán tọa độ" : "🎯 Bấm map để đặt vị trí"}
+              <Crosshair className="w-3.5 h-3.5" />
+              <span>{isPickingMode ? "Nhấp vào bản đồ để đặt" : "Căn chỉnh vị trí"}</span>
             </button>
           </>
         ) : (
           <span className="text-xs text-slate-500 font-medium">
-            Chọn 1 địa điểm bên trái để căn chỉnh tọa độ
+            Chọn 1 địa điểm để căn chỉnh tọa độ
           </span>
         )}
         {saving && (
-          <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded border border-emerald-200">
-            Đang lưu DB...
+          <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded border border-emerald-200">
+            Đã lưu
           </span>
         )}
       </div>
@@ -254,13 +257,14 @@ export default function MapView({
               <Popup className="aria-poi-popup">
                 <div className="p-1 max-w-xs">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-[11px] uppercase tracking-wider font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
+                    <span className="text-[11px] uppercase tracking-wider font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
                       {poi.category.replace("amenity=", "")}
                     </span>
                     {poi.rating && (
-                      <span className="text-xs font-semibold text-amber-600">
-                        ★ {poi.rating}
-                      </span>
+                      <div className="flex items-center gap-0.5 text-xs font-semibold text-amber-600">
+                        <Star className="w-3 h-3 fill-amber-500 text-amber-500" />
+                        <span>{poi.rating}</span>
+                      </div>
                     )}
                   </div>
                   <h4 className="font-bold text-slate-900 text-sm leading-snug">
@@ -273,13 +277,17 @@ export default function MapView({
                     [{poi.latitude.toFixed(5)}, {poi.longitude.toFixed(5)}]
                   </p>
                   {isSelected && (
-                    <div className="mt-2 text-[11px] text-blue-700 bg-blue-50 p-1.5 rounded border border-blue-200">
-                      💡 <b>Mẹo:</b> Bạn có thể kéo ghim này hoặc dùng nút <b>"Bấm map để đặt vị trí"</b> ở góc trên!
+                    <div className="mt-2 text-[11px] text-slate-700 bg-slate-50 p-2 rounded border border-slate-200 flex items-start gap-1.5">
+                      <Info className="w-3.5 h-3.5 text-blue-600 shrink-0 mt-0.5" />
+                      <span>Có thể kéo thả ghim này hoặc dùng nút <b>Căn chỉnh vị trí</b> ở trên.</span>
                     </div>
                   )}
                   <div className="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-600">
-                    <span>⏱ {poi.avg_duration_minutes || 45} phút</span>
-                    <span className="font-semibold text-emerald-700">
+                    <span className="flex items-center gap-1">
+                      <Clock className="w-3 h-3 text-slate-400" />
+                      <span>{poi.avg_duration_minutes || 45} phút</span>
+                    </span>
+                    <span className="font-semibold text-slate-900">
                       {poi.avg_cost_usd === 0 ? "Miễn phí" : `$${poi.avg_cost_usd}`}
                     </span>
                   </div>
