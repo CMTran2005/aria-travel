@@ -30,3 +30,22 @@ export async function updatePOILocation(poiId: number, latitude: number, longitu
   }
   return res.json();
 }
+
+export async function planTripWithAI(prompt: string, city: string = "Hội An", userId?: string) {
+  const res = await fetch(`${BACKEND_URL}/api/trips/plan`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      user_prompt: prompt,
+      city: city,
+      user_id: userId,
+    }),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.detail || `Failed to plan trip: ${res.statusText}`);
+  }
+  return res.json();
+}

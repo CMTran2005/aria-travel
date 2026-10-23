@@ -88,10 +88,18 @@ export default function HomePage() {
           </span>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
+          <Link
+            href="/plan"
+            className="flex items-center gap-1.5 text-xs font-bold px-3.5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl shadow-sm transition"
+          >
+            <span>✨</span>
+            <span>Lập kế hoạch AI</span>
+          </Link>
+
           {user ? (
             <div className="flex items-center gap-3">
-              <span className="text-sm font-medium text-slate-700">
+              <span className="text-sm font-medium text-slate-700 hidden sm:inline">
                 {user.user_metadata?.display_name || user.email}
               </span>
               <button
@@ -104,9 +112,9 @@ export default function HomePage() {
           ) : (
             <Link
               href="/login"
-              className="text-sm font-semibold px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition shadow-sm"
+              className="text-xs font-semibold px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl transition shadow-sm"
             >
-              Đăng nhập / Đăng ký
+              Đăng nhập
             </Link>
           )}
         </div>
