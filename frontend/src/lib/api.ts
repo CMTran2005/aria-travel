@@ -16,3 +16,17 @@ export async function fetchPOIs(city: string = "Hội An", category?: string) {
   }
   return res.json();
 }
+
+export async function updatePOILocation(poiId: number, latitude: number, longitude: number) {
+  const res = await fetch(`${BACKEND_URL}/api/pois/${poiId}/location`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ latitude, longitude }),
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to update location: ${res.statusText}`);
+  }
+  return res.json();
+}

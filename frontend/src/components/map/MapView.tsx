@@ -21,10 +21,6 @@ const Popup = dynamic(
   () => import("react-leaflet").then((mod) => mod.Popup),
   { ssr: false }
 );
-const useMap = dynamic(
-  () => import("react-leaflet").then((mod) => mod.useMap),
-  { ssr: false }
-);
 
 export interface POI {
   id: number;
@@ -44,12 +40,13 @@ interface MapViewProps {
   pois: POI[];
   selectedPOI?: POI | null;
   onSelectPOI?: (poi: POI) => void;
+  onUpdateCoordinates?: (poiId: number, lat: number, lng: number) => Promise<void>;
   center?: [number, number];
   zoom?: number;
 }
 
-// Subcomponent to smoothly pan map when selected POI changes or bounds update
-import { useMap as useLeafletMap } from "react-leaflet";
+// Subcomponents with useMap events
+import { useMap as useLeafletMap, useMapEvents } from "react-leaflet";
 
 function MapController({ center, zoom }: { center: [number, number]; zoom: number }) {
   const map = useLeafletMap();
@@ -59,26 +56,46 @@ function MapController({ center, zoom }: { center: [number, number]; zoom: numbe
   return null;
 }
 
+// Listener for Clicking directly on Map to set coordinate
+function MapClickListener({
+  isPicking,
+  onPick,
+}: {
+  isPicking: boolean;
+  onPick: (lat: number, lng: number) => void;
+}) {
+  useMapEvents({
+    click(e) {
+      if (isPicking) {
+        onPick(e.latlng.lat, e.latlng.lng);
+      }
+    },
+  });
+  return null;
+}
+
 export default function MapView({
   pois,
   selectedPOI,
   onSelectPOI,
-  center = [15.8775, 108.3285], // Exact heart of Hoi An Ancient Town
+  onUpdateCoordinates,
+  center = [15.8775, 108.3285],
   zoom = 15,
 }: MapViewProps) {
   const [mounted, setMounted] = useState(false);
   const [normalIcon, setNormalIcon] = useState<any>(null);
   const [selectedIcon, setSelectedIcon] = useState<any>(null);
+  const [isPickingMode, setIsPickingMode] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     setMounted(true);
     import("leaflet").then((L) => {
-      // 1. Sleek Minimalist Pin: Thanh đứng + vòng tròn trên đầu (không có khung to cồng kềnh)
+      // 1. Sleek Minimalist Pin: Thanh đứng + vòng tròn trên đầu
       const normal = L.divIcon({
         className: "aria-pin-clean",
         html: `
           <div style="position: relative; width: 14px; height: 26px; display: flex; flex-direction: column; align-items: center;">
-            <!-- Vòng tròn trên đầu -->
             <div style="
               width: 12px;
               height: 12px;
@@ -87,7 +104,6 @@ export default function MapView({
               border: 2px solid #ffffff;
               box-shadow: 0 2px 6px rgba(37,99,235,0.45);
             "></div>
-            <!-- Thanh kim chỉ xuống điểm cắm -->
             <div style="
               width: 2px;
               height: 14px;
@@ -97,11 +113,11 @@ export default function MapView({
           </div>
         `,
         iconSize: [14, 26],
-        iconAnchor: [7, 26],   // Đáy thanh kim chạm đúng tọa độ
-        popupAnchor: [0, -26], // Popup hiển thị ngay trên đỉnh vòng tròn
+        iconAnchor: [7, 26],
+        popupAnchor: [0, -26],
       });
 
-      // 2. Selected Pin: Màu đỏ hồng nổi bật khi click vào
+      // 2. Selected Pin
       const active = L.divIcon({
         className: "aria-pin-active",
         html: `
@@ -132,6 +148,32 @@ export default function MapView({
     });
   }, []);
 
+  const handleMapClickPick = async (lat: number, lng: number) => {
+    if (!selectedPOI || !onUpdateCoordinates) return;
+    setSaving(true);
+    try {
+      await onUpdateCoordinates(selectedPOI.id, Number(lat.toFixed(6)), Number(lng.toFixed(6)));
+      setIsPickingMode(false);
+    } catch (e) {
+      alert("Lỗi khi cập nhật vị trí!");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDragEnd = async (poiId: number, e: any) => {
+    if (!onUpdateCoordinates) return;
+    const { lat, lng } = e.target.getLatLng();
+    setSaving(true);
+    try {
+      await onUpdateCoordinates(poiId, Number(lat.toFixed(6)), Number(lng.toFixed(6)));
+    } catch (e) {
+      alert("Lỗi khi cập nhật vị trí!");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (!mounted) {
     return (
       <div className="w-full h-full min-h-[450px] bg-slate-100 flex items-center justify-center text-slate-400 font-medium">
@@ -140,7 +182,6 @@ export default function MapView({
     );
   }
 
-  // Focus directly on selected POI or Hoi An ancient town center
   const activeCenter: [number, number] = selectedPOI
     ? [selectedPOI.latitude, selectedPOI.longitude]
     : center;
@@ -149,6 +190,36 @@ export default function MapView({
 
   return (
     <div className="w-full h-full min-h-[450px] rounded-2xl overflow-hidden border border-slate-200 shadow-inner relative">
+      {/* Floating Toolbar: Quick Update Coordinate Actions */}
+      <div className="absolute top-3 right-3 z-[1000] flex items-center gap-2 bg-white/95 backdrop-blur-md px-3 py-2 rounded-xl border border-slate-200 shadow-lg">
+        {selectedPOI ? (
+          <>
+            <span className="text-xs font-semibold text-slate-700 hidden sm:inline">
+              📍 <span className="text-blue-600 font-bold">{selectedPOI.name}</span>
+            </span>
+            <button
+              onClick={() => setIsPickingMode(!isPickingMode)}
+              className={`text-xs font-bold px-3 py-1.5 rounded-lg transition shadow-sm ${
+                isPickingMode
+                  ? "bg-rose-600 text-white animate-pulse"
+                  : "bg-blue-600 hover:bg-blue-700 text-white"
+              }`}
+            >
+              {isPickingMode ? "🎯 Click vào Map để gán tọa độ" : "🎯 Bấm map để đặt vị trí"}
+            </button>
+          </>
+        ) : (
+          <span className="text-xs text-slate-500 font-medium">
+            Chọn 1 POI bên trái để điều chỉnh tọa độ
+          </span>
+        )}
+        {saving && (
+          <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded">
+            Đang lưu DB...
+          </span>
+        )}
+      </div>
+
       <MapContainer
         center={activeCenter}
         zoom={activeZoom}
@@ -156,6 +227,7 @@ export default function MapView({
         style={{ width: "100%", height: "100%", minHeight: "450px" }}
       >
         <MapController center={activeCenter} zoom={activeZoom} />
+        <MapClickListener isPicking={isPickingMode} onPick={handleMapClickPick} />
 
         {/* Google Maps Roadmap Basemap (Tiêu chuẩn hiển thị độ chính xác cao nhất) */}
         <TileLayer
@@ -168,11 +240,13 @@ export default function MapView({
           const isSelected = selectedPOI?.id === poi.id;
           return (
             <Marker
-              key={poi.id}
+              key={`${poi.id}-${poi.latitude}-${poi.longitude}`}
               position={[poi.latitude, poi.longitude]}
+              draggable={isSelected} // Cho phép kéo thả trực tiếp khi đang được chọn
               icon={(isSelected ? selectedIcon : normalIcon) || undefined}
               eventHandlers={{
                 click: () => onSelectPOI && onSelectPOI(poi),
+                dragend: (e) => handleDragEnd(poi.id, e),
               }}
             >
               <Popup className="aria-poi-popup">
@@ -193,6 +267,14 @@ export default function MapView({
                   <p className="text-xs text-slate-500 mt-1 line-clamp-2">
                     {poi.address || "Khu vực phố cổ"}
                   </p>
+                  <p className="text-[10px] text-blue-600 font-mono mt-1">
+                    [{poi.latitude.toFixed(5)}, {poi.longitude.toFixed(5)}]
+                  </p>
+                  {isSelected && (
+                    <div className="mt-2 text-[11px] text-amber-700 bg-amber-50 p-1.5 rounded border border-amber-200">
+                      💡 <b>Mẹo:</b> Bạn có thể giữ chuột <b>kéo thả ghim này</b> hoặc bấm nút <b>"Bấm map để đặt vị trí"</b> ở góc trên!
+                    </div>
+                  )}
                   <div className="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-600">
                     <span>⏱ {poi.avg_duration_minutes || 45} phút</span>
                     <span className="font-semibold text-emerald-700">

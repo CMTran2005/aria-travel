@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import { fetchPOIs } from "@/lib/api";
+import { fetchPOIs, updatePOILocation } from "@/lib/api";
 import { User } from "@supabase/supabase-js";
 import dynamic from "next/dynamic";
 import { POI } from "@/components/map/MapView";
@@ -56,6 +56,19 @@ export default function HomePage() {
   const handleCategoryChange = (cat: string) => {
     setCategoryFilter(cat);
     loadPOIs(cat);
+  };
+
+  const handleUpdateCoordinates = async (poiId: number, lat: number, lng: number) => {
+    await updatePOILocation(poiId, lat, lng);
+    // Update local state smoothly
+    setPois((prev) =>
+      prev.map((item) =>
+        item.id === poiId ? { ...item, latitude: lat, longitude: lng } : item
+      )
+    );
+    if (selectedPOI && selectedPOI.id === poiId) {
+      setSelectedPOI((prev) => (prev ? { ...prev, latitude: lat, longitude: lng } : null));
+    }
   };
 
   const handleLogout = async () => {
@@ -190,6 +203,7 @@ export default function HomePage() {
               pois={pois}
               selectedPOI={selectedPOI}
               onSelectPOI={(poi) => setSelectedPOI(poi)}
+              onUpdateCoordinates={handleUpdateCoordinates}
               center={
                 selectedPOI
                   ? [selectedPOI.latitude, selectedPOI.longitude]

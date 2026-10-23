@@ -1,10 +1,15 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Body
 from typing import Optional, List, Dict, Any
+from pydantic import BaseModel
 from app.core.supabase import get_supabase_client
 from app.core.geo import parse_wkb_point
 from app.services.osm_fetcher import CURATED_HOI_AN_POIS
 
 router = APIRouter(prefix="/pois", tags=["POIs"])
+
+class UpdateLocationRequest(BaseModel):
+    latitude: float
+    longitude: float
 
 @router.get("/")
 def get_pois(
@@ -23,7 +28,7 @@ def get_pois(
         if category:
             query = query.eq("category", category)
         
-        res = query.limit(limit).execute()
+        res = query.order("id").limit(limit).execute()
         pois = []
         for row in res.data:
             lat_lon = parse_wkb_point(row.get("location"))
@@ -34,6 +39,26 @@ def get_pois(
                 "longitude": lon
             })
         return {"data": pois, "count": len(pois)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.patch("/{poi_id}/location")
+def update_poi_location(poi_id: int, payload: UpdateLocationRequest):
+    """
+    Update POI location coordinates directly from Map interaction.
+    """
+    try:
+        client = get_supabase_client()
+        wkt_location = f"SRID=4326;POINT({payload.longitude} {payload.latitude})"
+        res = client.table("pois").update({"location": wkt_location}).eq("id", poi_id).execute()
+        if not res.data:
+            raise HTTPException(status_code=404, detail="POI not found")
+        return {
+            "status": "success",
+            "message": f"Updated location for POI #{poi_id}",
+            "latitude": payload.latitude,
+            "longitude": payload.longitude
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
