@@ -200,16 +200,18 @@ export default function HomePage() {
           {/* Right Column: Leaflet Map */}
           <div className="lg:col-span-7 h-[600px]">
             <MapView
-              pois={pois}
               selectedPOI={selectedPOI}
-              onSelectPOI={(poi) => setSelectedPOI(poi)}
-              onUpdateCoordinates={handleUpdateCoordinates}
+              onSelectPOI={(poi: any) => setSelectedPOI(poi)}
+              onAddPOI={(poi: any) => {
+                alert(`Đã thêm "${poi.name}" vào danh sách khám phá!`);
+                setPois((prev) => [poi, ...prev.filter((p) => p.name !== poi.name)]);
+              }}
               center={
                 selectedPOI
                   ? [selectedPOI.latitude, selectedPOI.longitude]
-                  : [15.8800, 108.3300]
+                  : [15.8775, 108.3285]
               }
-              zoom={selectedPOI ? 15 : 14}
+              zoom={selectedPOI ? 16 : 15}
             />
           </div>
         </div>
