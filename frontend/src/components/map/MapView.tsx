@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import dynamic from "next/dynamic";
 import "leaflet/dist/leaflet.css";
-import { MapPin, Crosshair, Star, Clock, DollarSign, Info } from "lucide-react";
+import { MapPin, Crosshair, Star, Clock, Info } from "lucide-react";
 
 // Dynamic imports to prevent SSR window issues
 const MapContainer = dynamic(
@@ -48,12 +48,19 @@ interface MapViewProps {
   zoom?: number;
 }
 
-// Subcomponent to smoothly pan map when selected POI changes
+// Subcomponent to smoothly pan map ONLY when coordinates actually change (avoids shaking on tab focus)
 function MapController({ center, zoom }: { center: [number, number]; zoom: number }) {
   const map = useMap();
+  const prevCenterRef = useRef<string>("");
+
   useEffect(() => {
-    map.flyTo(center, zoom, { duration: 1.0, easeLinearity: 0.25 });
+    const key = `${center[0].toFixed(5)},${center[1].toFixed(5)},${zoom}`;
+    if (prevCenterRef.current !== key) {
+      prevCenterRef.current = key;
+      map.flyTo(center, zoom, { duration: 0.8, easeLinearity: 0.25 });
+    }
   }, [center, zoom, map]);
+
   return null;
 }
 
@@ -75,6 +82,51 @@ function MapClickListener({
   return null;
 }
 
+// Flaticon-style SVG Icons embedded for each specific POI category
+function getCategoryIconSvg(category: string, isSelected: boolean): string {
+  const pinColor = isSelected ? "#2563eb" : "#1e293b";
+  const iconColor = "#ffffff";
+
+  // Category specific symbols inside the pin
+  let innerSymbol = "";
+  
+  if (category.includes("restaurant") || category.includes("food")) {
+    // 🍴 Utensils / Food
+    innerSymbol = `<path d="M18 2v6a3 3 0 0 1-3 3 3 3 0 0 1-3-3V2m0 0v6m3-6v6M6 2v10a2 2 0 0 0 2 2h0a2 2 0 0 0 2-2V2M15 11v9M8 14v6" stroke="${iconColor}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>`;
+  } else if (category.includes("cafe")) {
+    // ☕ Coffee cup
+    innerSymbol = `<path d="M17 8h1a4 4 0 1 1 0 8h-1M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V8zM6 2v3M10 2v3M14 2v3" stroke="${iconColor}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>`;
+  } else if (category.includes("marketplace") || category.includes("shop")) {
+    // 🛍️ Shopping bag
+    innerSymbol = `<path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4zM3 6h18M16 10a4 4 0 0 1-8 0" stroke="${iconColor}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>`;
+  } else if (category.includes("leisure") || category.includes("beach")) {
+    // 🌴 Palm / Umbrella / Waves
+    innerSymbol = `<path d="M12 2a9 9 0 0 1 9 9H3a9 9 0 0 1 9-9zM12 11v11M8 22h8" stroke="${iconColor}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>`;
+  } else {
+    // 🏛️ Tourism / Heritage Monument
+    innerSymbol = `<path d="m2 7 10-5 10 5M4 10v10M8 10v10M12 10v10M16 10v10M20 10v10M2 20h20" stroke="${iconColor}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>`;
+  }
+
+  const width = isSelected ? 34 : 28;
+  const height = isSelected ? 44 : 36;
+  const dropShadow = isSelected
+    ? "drop-shadow(0 4px 10px rgba(37,99,235,0.5))"
+    : "drop-shadow(0 2px 5px rgba(0,0,0,0.3))";
+
+  return `
+    <div style="filter: ${dropShadow}; cursor: pointer; transition: transform 0.2s ease;">
+      <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 36 46">
+        <!-- Pin Shape -->
+        <path d="M18 0C8.06 0 0 8.06 0 18c0 13.5 18 28 18 28s18-14.5 18-28c0-9.94-8.06-18-18-18z" fill="${pinColor}" stroke="#ffffff" stroke-width="2"/>
+        <!-- Inner Category Symbol (scaled and positioned inside head circle) -->
+        <g transform="translate(6, 6) scale(1.0)">
+          ${innerSymbol}
+        </g>
+      </svg>
+    </div>
+  `;
+}
+
 export default function MapView({
   pois,
   selectedPOI,
@@ -84,49 +136,30 @@ export default function MapView({
   zoom = 15,
 }: MapViewProps) {
   const [mounted, setMounted] = useState(false);
-  const [normalIcon, setNormalIcon] = useState<any>(null);
-  const [selectedIcon, setSelectedIcon] = useState<any>(null);
+  const [leafletLib, setLeafletLib] = useState<any>(null);
   const [isPickingMode, setIsPickingMode] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     setMounted(true);
     import("leaflet").then((L) => {
-      // 1. Sleek Minimalist Needle Pin (SVG sạch sẽ, đơn sắc, chuyên nghiệp)
-      // 1. Clean Location Pin SVG (Màu than chì #1e293b tối giản, dễ nhìn, chuẩn bản đồ)
-      const normal = L.divIcon({
-        className: "aria-location-pin",
-        html: `
-          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="28" viewBox="0 0 24 24" fill="#1e293b" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); cursor: pointer;">
-            <path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/>
-            <circle cx="12" cy="10" r="3" fill="#ffffff" stroke="none"/>
-          </svg>
-        `,
-        iconSize: [22, 28],
-        iconAnchor: [11, 28], // Mũi nhọn chạm đúng tọa độ
-        popupAnchor: [0, -28],
-      });
-
-      // 2. Active Location Pin SVG (Màu xanh dương #2563eb khi được chọn)
-      const active = L.divIcon({
-        className: "aria-location-pin-active",
-        html: `
-          <svg xmlns="http://www.w3.org/2000/svg" width="26" height="34" viewBox="0 0 24 24" fill="#2563eb" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="filter: drop-shadow(0 3px 8px rgba(37,99,235,0.6)); cursor: pointer;">
-            <path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/>
-            <circle cx="12" cy="10" r="3" fill="#ffffff" stroke="none"/>
-          </svg>
-        `,
-        iconSize: [26, 34],
-        iconAnchor: [13, 34],
-        popupAnchor: [0, -34],
-      });
-
-      setNormalIcon(normal);
-      setSelectedIcon(active);
+      setLeafletLib(L);
     });
   }, []);
 
-  // Handle 1-click on map to pick coordinate
+  const createIcon = (category: string, isSelected: boolean) => {
+    if (!leafletLib) return undefined;
+    const width = isSelected ? 34 : 28;
+    const height = isSelected ? 44 : 36;
+    return leafletLib.divIcon({
+      className: `aria-cat-pin-${isSelected ? "active" : "normal"}`,
+      html: getCategoryIconSvg(category, isSelected),
+      iconSize: [width, height],
+      iconAnchor: [width / 2, height],
+      popupAnchor: [0, -height],
+    });
+  };
+
   const handleMapClickPick = async (lat: number, lng: number) => {
     if (!selectedPOI || !onUpdateCoordinates) return;
     setSaving(true);
@@ -140,7 +173,6 @@ export default function MapView({
     }
   };
 
-  // Handle dragging
   const handleDragEnd = async (poiId: number, e: any) => {
     if (!onUpdateCoordinates) return;
     const { lat, lng } = e.target.getLatLng();
@@ -170,7 +202,7 @@ export default function MapView({
 
   return (
     <div className="w-full h-full min-h-[450px] rounded-2xl overflow-hidden border border-slate-200 shadow-inner relative">
-      {/* Floating Toolbar ở góc trên bên phải: 1-Click đặt vị trí */}
+      {/* Floating Toolbar ở góc trên bên phải */}
       <div className="absolute top-4 right-4 z-[1000] flex items-center gap-2 bg-white/95 backdrop-blur-md px-3.5 py-2 rounded-xl border border-slate-200 shadow-lg">
         {selectedPOI ? (
           <>
@@ -211,10 +243,10 @@ export default function MapView({
         <MapController center={activeCenter} zoom={activeZoom} />
         <MapClickListener isPicking={isPickingMode} onPick={handleMapClickPick} />
 
-        {/* Clean Google Maps Roadmap Basemap (100% Free, max clarity) */}
+        {/* Clean Google Maps Base Tiles WITHOUT Business/POI clutter: lyrs=r (clean road only) */}
         <TileLayer
           attribution='&copy; <a href="https://maps.google.com">Google Maps</a>'
-          url="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
+          url="https://mt1.google.com/vt/lyrs=r&x={x}&y={y}&z={z}"
           maxZoom={20}
         />
 
@@ -225,7 +257,7 @@ export default function MapView({
               key={`${poi.id}-${poi.latitude}-${poi.longitude}`}
               position={[poi.latitude, poi.longitude]}
               draggable={isSelected}
-              icon={(isSelected ? selectedIcon : normalIcon) || undefined}
+              icon={createIcon(poi.category, isSelected)}
               eventHandlers={{
                 click: () => onSelectPOI && onSelectPOI(poi),
                 dragend: (e) => handleDragEnd(poi.id, e),
