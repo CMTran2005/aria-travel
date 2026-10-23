@@ -93,55 +93,32 @@ export default function MapView({
     setMounted(true);
     import("leaflet").then((L) => {
       // 1. Sleek Minimalist Needle Pin (SVG sạch sẽ, đơn sắc, chuyên nghiệp)
+      // 1. Clean Location Pin SVG (Màu than chì #1e293b tối giản, dễ nhìn, chuẩn bản đồ)
       const normal = L.divIcon({
-        className: "aria-pin-clean",
+        className: "aria-location-pin",
         html: `
-          <div style="position: relative; width: 14px; height: 26px; display: flex; flex-direction: column; align-items: center; cursor: pointer;">
-            <div style="
-              width: 10px;
-              height: 10px;
-              border-radius: 50%;
-              background: #0f172a;
-              border: 2px solid #ffffff;
-              box-shadow: 0 1px 4px rgba(0,0,0,0.25);
-            "></div>
-            <div style="
-              width: 1.5px;
-              height: 14px;
-              background: #0f172a;
-              border-radius: 1px;
-            "></div>
-          </div>
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="28" viewBox="0 0 24 24" fill="#1e293b" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); cursor: pointer;">
+            <path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/>
+            <circle cx="12" cy="10" r="3" fill="#ffffff" stroke="none"/>
+          </svg>
         `,
-        iconSize: [14, 26],
-        iconAnchor: [7, 26],
-        popupAnchor: [0, -26],
+        iconSize: [22, 28],
+        iconAnchor: [11, 28], // Mũi nhọn chạm đúng tọa độ
+        popupAnchor: [0, -28],
       });
 
-      // 2. Selected Pin (Màu xanh thương hiệu sắc nét khi active)
+      // 2. Active Location Pin SVG (Màu xanh dương #2563eb khi được chọn)
       const active = L.divIcon({
-        className: "aria-pin-active",
+        className: "aria-location-pin-active",
         html: `
-          <div style="position: relative; width: 16px; height: 32px; display: flex; flex-direction: column; align-items: center; cursor: pointer;">
-            <div style="
-              width: 12px;
-              height: 12px;
-              border-radius: 50%;
-              background: #2563eb;
-              border: 2px solid #ffffff;
-              box-shadow: 0 0 10px rgba(37,99,235,0.5);
-            "></div>
-            <div style="
-              width: 2px;
-              height: 18px;
-              background: #2563eb;
-              border-radius: 1px;
-            "></div>
-          </div>
+          <svg xmlns="http://www.w3.org/2000/svg" width="26" height="34" viewBox="0 0 24 24" fill="#2563eb" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="filter: drop-shadow(0 3px 8px rgba(37,99,235,0.6)); cursor: pointer;">
+            <path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/>
+            <circle cx="12" cy="10" r="3" fill="#ffffff" stroke="none"/>
+          </svg>
         `,
-        iconSize: [16, 32],
-        iconAnchor: [8, 32],
-        popupAnchor: [0, -32],
+        iconSize: [26, 34],
+        iconAnchor: [13, 34],
+        popupAnchor: [0, -34],
       });
 
       setNormalIcon(normal);
