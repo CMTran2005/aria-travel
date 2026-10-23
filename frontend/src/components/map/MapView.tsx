@@ -22,7 +22,7 @@ const Popup = dynamic(
   { ssr: false }
 );
 
-import { useMap } from "react-leaflet";
+import { useMap, useMapEvents } from "react-leaflet";
 
 export interface POI {
   id: number;
@@ -56,6 +56,24 @@ function MapController({ center, zoom }: { center: [number, number]; zoom: numbe
   return null;
 }
 
+// 1-Click listener directly on map to pick coordinate for the selected POI
+function MapClickListener({
+  isPicking,
+  onPick,
+}: {
+  isPicking: boolean;
+  onPick: (lat: number, lng: number) => void;
+}) {
+  useMapEvents({
+    click(e) {
+      if (isPicking) {
+        onPick(e.latlng.lat, e.latlng.lng);
+      }
+    },
+  });
+  return null;
+}
+
 export default function MapView({
   pois,
   selectedPOI,
@@ -67,12 +85,13 @@ export default function MapView({
   const [mounted, setMounted] = useState(false);
   const [normalIcon, setNormalIcon] = useState<any>(null);
   const [selectedIcon, setSelectedIcon] = useState<any>(null);
+  const [isPickingMode, setIsPickingMode] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     setMounted(true);
     import("leaflet").then((L) => {
-      // 1. Sleek Minimalist Needle Pin (Chỉ gồm 1 vòng tròn 11px + 1 kim mảnh, không che map)
+      // 1. Sleek Minimalist Needle Pin
       const normal = L.divIcon({
         className: "aria-pin-clean",
         html: `
@@ -98,7 +117,7 @@ export default function MapView({
         popupAnchor: [0, -24],
       });
 
-      // 2. Selected Pin (Màu đỏ hồng nổi bật khi click vào)
+      // 2. Selected Pin (Màu đỏ hồng nổi bật)
       const active = L.divIcon({
         className: "aria-pin-active",
         html: `
@@ -129,6 +148,21 @@ export default function MapView({
     });
   }, []);
 
+  // Handle 1-click on map to pick coordinate
+  const handleMapClickPick = async (lat: number, lng: number) => {
+    if (!selectedPOI || !onUpdateCoordinates) return;
+    setSaving(true);
+    try {
+      await onUpdateCoordinates(selectedPOI.id, Number(lat.toFixed(6)), Number(lng.toFixed(6)));
+      setIsPickingMode(false);
+    } catch {
+      alert("Lỗi khi cập nhật vị trí!");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Handle dragging
   const handleDragEnd = async (poiId: number, e: any) => {
     if (!onUpdateCoordinates) return;
     const { lat, lng } = e.target.getLatLng();
@@ -158,12 +192,35 @@ export default function MapView({
 
   return (
     <div className="w-full h-full min-h-[450px] rounded-2xl overflow-hidden border border-slate-200 shadow-inner relative">
-      {/* Status indicator when saving dragged pin */}
-      {saving && (
-        <div className="absolute top-4 right-4 z-[1000] bg-emerald-600 text-white font-bold text-xs px-3 py-1.5 rounded-lg shadow-lg animate-pulse">
-          ✓ Đã lưu vị trí mới
-        </div>
-      )}
+      {/* Floating Toolbar ở góc trên bên phải: 1-Click đặt vị trí */}
+      <div className="absolute top-4 right-4 z-[1000] flex items-center gap-2 bg-white/95 backdrop-blur-md px-3.5 py-2 rounded-xl border border-slate-200 shadow-lg">
+        {selectedPOI ? (
+          <>
+            <span className="text-xs font-semibold text-slate-700 hidden sm:inline">
+              📍 <span className="text-blue-600 font-bold">{selectedPOI.name}</span>
+            </span>
+            <button
+              onClick={() => setIsPickingMode(!isPickingMode)}
+              className={`text-xs font-bold px-3 py-1.5 rounded-lg transition shadow-sm ${
+                isPickingMode
+                  ? "bg-rose-600 text-white animate-pulse"
+                  : "bg-blue-600 hover:bg-blue-700 text-white"
+              }`}
+            >
+              {isPickingMode ? "🎯 Click vào Map để gán tọa độ" : "🎯 Bấm map để đặt vị trí"}
+            </button>
+          </>
+        ) : (
+          <span className="text-xs text-slate-500 font-medium">
+            Chọn 1 địa điểm bên trái để căn chỉnh tọa độ
+          </span>
+        )}
+        {saving && (
+          <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded border border-emerald-200">
+            Đang lưu DB...
+          </span>
+        )}
+      </div>
 
       <MapContainer
         center={activeCenter}
@@ -172,6 +229,7 @@ export default function MapView({
         style={{ width: "100%", height: "100%", minHeight: "450px" }}
       >
         <MapController center={activeCenter} zoom={activeZoom} />
+        <MapClickListener isPicking={isPickingMode} onPick={handleMapClickPick} />
 
         {/* Clean Google Maps Roadmap Basemap (100% Free, max clarity) */}
         <TileLayer
@@ -186,7 +244,7 @@ export default function MapView({
             <Marker
               key={`${poi.id}-${poi.latitude}-${poi.longitude}`}
               position={[poi.latitude, poi.longitude]}
-              draggable={isSelected} // Kéo thả tự do khi đang chọn điểm này
+              draggable={isSelected}
               icon={(isSelected ? selectedIcon : normalIcon) || undefined}
               eventHandlers={{
                 click: () => onSelectPOI && onSelectPOI(poi),
@@ -216,7 +274,7 @@ export default function MapView({
                   </p>
                   {isSelected && (
                     <div className="mt-2 text-[11px] text-blue-700 bg-blue-50 p-1.5 rounded border border-blue-200">
-                      💡 <b>Kéo thả ghim:</b> Giữ chuột kéo ghim này để điều chỉnh đúng vị trí bạn muốn!
+                      💡 <b>Mẹo:</b> Bạn có thể kéo ghim này hoặc dùng nút <b>"Bấm map để đặt vị trí"</b> ở góc trên!
                     </div>
                   )}
                   <div className="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-600">
