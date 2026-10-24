@@ -93,7 +93,6 @@ export default function HomePage() {
             href="/plan"
             className="flex items-center gap-1.5 text-xs font-bold px-3.5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl shadow-sm transition"
           >
-            <span>✨</span>
             <span>Lập kế hoạch AI</span>
           </Link>
 
@@ -147,11 +146,10 @@ export default function HomePage() {
               <button
                 key={cat.id}
                 onClick={() => handleCategoryChange(cat.id)}
-                className={`text-xs font-medium px-3.5 py-1.5 rounded-full transition ${
-                  categoryFilter === cat.id
+                className={`text-xs font-medium px-3.5 py-1.5 rounded-full transition ${categoryFilter === cat.id
                     ? "bg-slate-900 text-white"
                     : "bg-white text-slate-600 border border-slate-200 hover:border-slate-300"
-                }`}
+                  }`}
               >
                 {cat.label}
               </button>
@@ -176,11 +174,10 @@ export default function HomePage() {
                 <div
                   key={poi.id}
                   onClick={() => setSelectedPOI(poi)}
-                  className={`p-4 rounded-xl border transition cursor-pointer text-left ${
-                    selectedPOI?.id === poi.id
+                  className={`p-4 rounded-xl border transition cursor-pointer text-left ${selectedPOI?.id === poi.id
                       ? "bg-blue-50/60 border-blue-500 shadow-sm"
                       : "bg-white border-slate-200 hover:border-slate-300"
-                  }`}
+                    }`}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <h3 className="font-bold text-slate-900 text-base">
