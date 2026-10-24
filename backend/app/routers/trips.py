@@ -6,6 +6,7 @@ from app.core.geo import parse_wkb_point
 from app.services.ai_agent import extract_user_intent, score_pois_with_ai
 from app.services.optimizer import schedule_multi_day_trip
 from app.services.routing import get_route_geometry
+from app.services.benchmark import benchmark_greedy_vs_ortools
 
 router = APIRouter(prefix="/trips", tags=["Trips"])
 
@@ -221,3 +222,40 @@ def get_trip_detail(trip_id: str):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Lỗi truy vấn chuyến đi: {str(e)}")
+
+@router.get("/benchmark/compare")
+def compare_optimization_algorithms(city: str = "Hội An", num_days: int = 2):
+    """
+    Sprint 5 Deliverable: Benchmark Greedy Baseline vs Google OR-Tools TSPTW + K-Means
+    """
+    client = get_supabase_client()
+    try:
+        db_res = client.table("pois").select("*").eq("city", city).execute()
+        raw_pois = db_res.data or []
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Lỗi truy vấn POI: {str(e)}")
+
+    if not raw_pois:
+        db_res = client.table("pois").select("*").limit(20).execute()
+        raw_pois = db_res.data or []
+
+    pois = []
+    for row in raw_pois:
+        lat_lon = parse_wkb_point(row.get("location"))
+        lat, lon = lat_lon if lat_lon else (15.8800, 108.3300)
+        pois.append({
+            **row,
+            "latitude": lat,
+            "longitude": lon,
+            "ai_score": (row.get("rating") or 4.5) * 2
+        })
+
+    center = (pois[0]["latitude"], pois[0]["longitude"]) if pois else (15.8800, 108.3300)
+    result = benchmark_greedy_vs_ortools(
+        pois=pois[:16],
+        num_days=num_days,
+        city_center=center
+    )
+    result["city"] = city
+    return result
+
