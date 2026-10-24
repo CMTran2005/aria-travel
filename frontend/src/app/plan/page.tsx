@@ -256,7 +256,7 @@ export default function PlanPage() {
   const budgetDisplayText = useMemo(() => {
     const [minB, maxB] = budgetRange;
     if (minB === 0 && maxB >= 50_000_000) {
-      return "Không giới hạn ngân sách (thỏa sức trải nghiệm)";
+      return "Không giới hạn ngân sách";
     }
     if (minB === 0) {
       return `Dưới ${formatVnd(maxB)}`;
