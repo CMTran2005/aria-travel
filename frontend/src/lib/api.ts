@@ -59,3 +59,39 @@ export async function fetchTripDetail(tripId: string) {
   return res.json();
 }
 
+export async function fetchWeather(city: string = "Hội An") {
+  const res = await fetch(`${BACKEND_URL}/api/weather/${encodeURIComponent(city)}`, { cache: "no-store" });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.detail || `Failed to fetch weather: ${res.statusText}`);
+  }
+  return res.json();
+}
+
+export async function replanTrip(
+  tripId: string,
+  triggerType: "weather_rain" | "poi_closed" | "traffic_delay" | "manual",
+  dayNumber: number = 1,
+  closedPoiId?: number,
+  delayMinutes?: number
+) {
+  const res = await fetch(`${BACKEND_URL}/api/trips/${tripId}/replan`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      trigger_type: triggerType,
+      day_number: dayNumber,
+      closed_poi_id: closedPoiId,
+      delay_minutes: delayMinutes,
+    }),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.detail || `Failed to replan trip: ${res.statusText}`);
+  }
+  return res.json();
+}
+
+

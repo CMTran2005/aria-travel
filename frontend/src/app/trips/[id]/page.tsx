@@ -13,12 +13,17 @@ import {
   Clock,
   Sparkles,
   Share2,
-  Printer,
-  CheckCircle,
+  CloudRain,
+  Sun,
+  AlertTriangle,
+  RotateCcw,
+  CheckCircle2,
+  TrendingUp,
+  X
 } from "lucide-react";
 import MapView, { POI } from "@/components/map/MapView";
 import DayTimeline, { ItineraryDay } from "@/components/timeline/DayTimeline";
-import { fetchTripDetail } from "@/lib/api";
+import { fetchTripDetail, fetchWeather, replanTrip } from "@/lib/api";
 import { formatCostVi, formatVnd } from "@/lib/formatters";
 
 export default function TripDetailPage() {
@@ -31,6 +36,15 @@ export default function TripDetailPage() {
   const [selectedDayIdx, setSelectedDayIdx] = useState(0);
   const [selectedPOI, setSelectedPOI] = useState<POI | null>(null);
 
+  // Sprint 6: Weather & Real-time Re-planning State
+  const [weather, setWeather] = useState<any>(null);
+  const [replanning, setReplanning] = useState(false);
+  const [replanNotice, setReplanNotice] = useState<{
+    explanation: string;
+    affected: string[];
+    trigger: string;
+  } | null>(null);
+
   useEffect(() => {
     if (!tripId) return;
 
@@ -41,6 +55,12 @@ export default function TripDetailPage() {
         if (data.days && data.days.length > 0 && data.days[0].items.length > 0) {
           setSelectedPOI(data.days[0].items[0].poi);
         }
+        // Fetch weather for the trip city
+        if (data.city) {
+          fetchWeather(data.city)
+            .then((w) => setWeather(w))
+            .catch(() => {});
+        }
       })
       .catch((err) => {
         setErrorMsg(err.message || "Không thể tải thông tin chuyến đi.");
@@ -49,6 +69,42 @@ export default function TripDetailPage() {
         setLoading(false);
       });
   }, [tripId]);
+
+  // Handle Real-time Re-planning trigger
+  const handleTriggerReplan = async (
+    triggerType: "weather_rain" | "poi_closed" | "traffic_delay",
+    delayMins: number = 45
+  ) => {
+    if (!tripId || !trip) return;
+    setReplanning(true);
+    const dayNumber = (selectedDayIdx || 0) + 1;
+
+    try {
+      const res = await replanTrip(tripId, triggerType, dayNumber, undefined, delayMins);
+      if (res && res.days) {
+        // Update local trip days immediately
+        setTrip((prev: any) => ({
+          ...prev,
+          days: res.days,
+        }));
+        setReplanNotice({
+          explanation: res.explanation,
+          affected: res.affected_pois || [],
+          trigger: triggerType,
+        });
+
+        // Set first POI of the updated day
+        const currentUpdatedDay = res.days.find((d: any) => d.day_number === dayNumber);
+        if (currentUpdatedDay && currentUpdatedDay.items.length > 0) {
+          setSelectedPOI(currentUpdatedDay.items[0].poi);
+        }
+      }
+    } catch (err: any) {
+      alert(err.message || "Không thể tái lập lịch trình.");
+    } finally {
+      setReplanning(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -63,17 +119,19 @@ export default function TripDetailPage() {
   if (errorMsg || !trip) {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-center">
-        <div className="p-4 rounded-full bg-rose-100 text-rose-600 mb-4">
-          <MapPin className="w-8 h-8" />
+        <div className="p-4 rounded-full bg-rose-50 text-rose-600 mb-3 border border-rose-200">
+          <ChevronLeft className="w-6 h-6" />
         </div>
-        <h2 className="text-xl font-extrabold text-slate-900">Không tìm thấy chuyến đi</h2>
-        <p className="text-sm text-slate-500 mt-1 max-w-md">{errorMsg || "Chuyến đi này có thể không tồn tại hoặc đã bị xóa."}</p>
-        <a
+        <h2 className="text-lg font-bold text-slate-900">Không tìm thấy chuyến đi</h2>
+        <p className="text-xs text-slate-500 mt-1 max-w-sm mb-4">
+          {errorMsg || "Chuyến đi này có thể đã bị xóa hoặc không hợp lệ."}
+        </p>
+        <Link
           href="/plan"
-          className="mt-5 px-5 py-2.5 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition"
+          className="text-xs font-bold px-4 py-2 bg-slate-900 text-white rounded-xl shadow-sm"
         >
-          Tạo chuyến đi mới
-        </a>
+          Quay lại Lập kế hoạch
+        </Link>
       </div>
     );
   }
@@ -81,40 +139,39 @@ export default function TripDetailPage() {
   const days: ItineraryDay[] = trip.days || [];
   const currentDay = days[selectedDayIdx] || null;
 
-  // Map POIs with visit order
-  const mapPOIs: (POI & { visit_order?: number })[] = currentDay
-    ? currentDay.items.map((item) => ({
-        ...item.poi,
-        visit_order: item.visit_order,
-      }))
-    : [];
-
-  const dayCenter: [number, number] =
-    mapPOIs.length > 0
-      ? [mapPOIs[0].latitude, mapPOIs[0].longitude]
-      : [15.8800, 108.3300];
-
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
+    <div className="min-h-screen bg-slate-50 flex flex-col justify-between">
       {/* Top Navbar */}
       <header className="w-full bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between sticky top-0 z-50">
         <div className="flex items-center gap-3">
-          <a
+          <Link
             href="/plan"
             className="text-slate-500 hover:text-slate-900 transition flex items-center gap-1 text-xs font-semibold"
           >
             <ChevronLeft className="w-4 h-4" />
-            <span>Kế hoạch</span>
-          </a>
+            <span>Kế hoạch mới</span>
+          </Link>
           <span className="text-slate-300">|</span>
           <span className="text-xl font-black text-blue-600 tracking-tight">ARIA</span>
-          <span className="text-xs bg-emerald-50 text-emerald-800 font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1.5 border border-emerald-200">
-            <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
-            <span>Lộ trình đã tối ưu (Greedy Baseline)</span>
+          <span className="text-xs bg-slate-100 text-slate-800 font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1.5 border border-slate-200">
+            <Compass className="w-3.5 h-3.5 text-blue-600" />
+            <span>Lộ trình thông minh thích ứng</span>
           </span>
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Weather Widget Header */}
+          {weather && (
+            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700">
+              {weather.is_bad_weather ? (
+                <CloudRain className="w-4 h-4 text-blue-600 animate-pulse" />
+              ) : (
+                <Sun className="w-4 h-4 text-amber-500" />
+              )}
+              <span>{weather.city}: {weather.temperature_c}°C, {weather.description}</span>
+            </div>
+          )}
+
           <button
             onClick={() => {
               if (navigator.share) {
@@ -145,13 +202,17 @@ export default function TripDetailPage() {
               <span className="text-xs text-slate-500 font-medium">
                 {days.length} Ngày khám phá
               </span>
+              <span className="text-xs text-slate-400 font-medium">•</span>
+              <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                OR-Tools TSPTW Tối ưu
+              </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
               {trip.title || `Lịch trình du lịch ${trip.city}`}
             </h1>
           </div>
 
-          <div className="flex flex-wrap items-center gap-4 text-xs font-semibold text-slate-700">
+          <div className="flex flex-wrap items-center gap-3 text-xs font-semibold text-slate-700">
             <div className="flex items-center gap-1.5 bg-slate-50 px-3 py-2 rounded-xl border border-slate-200">
               <DollarSign className="w-4 h-4 text-emerald-600" />
               <span>Ngân sách: {formatCostVi(trip.budget_usd)}</span>
@@ -162,6 +223,87 @@ export default function TripDetailPage() {
             </div>
           </div>
         </div>
+
+        {/* Sprint 6: Real-time Re-planning Simulation Bar */}
+        <div className="bg-gradient-to-r from-blue-50 via-indigo-50 to-slate-50 p-4 rounded-2xl border border-blue-200/70 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0">
+              <Sparkles className="w-4 h-4" />
+            </div>
+            <div>
+              <h4 className="text-xs font-extrabold text-slate-900">
+                Tái lập lịch trình thích ứng thời gian thực (Adaptive Re-planning)
+              </h4>
+              <p className="text-[11px] text-slate-500">
+                Mô phỏng sự cố ngoại cảnh để kích hoạt thuật toán tự điều chỉnh lộ trình cho Ngày {(selectedDayIdx || 0) + 1}:
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Trigger 1: Rain */}
+            <button
+              onClick={() => handleTriggerReplan("weather_rain")}
+              disabled={replanning}
+              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-white hover:bg-slate-50 text-blue-800 border border-blue-200 shadow-2xs flex items-center gap-1.5 transition disabled:opacity-50"
+            >
+              <CloudRain className="w-3.5 h-3.5 text-blue-600" />
+              <span>Thời tiết xấu (Mưa to)</span>
+            </button>
+
+            {/* Trigger 2: Closure */}
+            <button
+              onClick={() => handleTriggerReplan("poi_closed")}
+              disabled={replanning}
+              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-white hover:bg-slate-50 text-amber-800 border border-amber-200 shadow-2xs flex items-center gap-1.5 transition disabled:opacity-50"
+            >
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+              <span>Điểm đóng cửa</span>
+            </button>
+
+            {/* Trigger 3: Traffic Delay */}
+            <button
+              onClick={() => handleTriggerReplan("traffic_delay", 45)}
+              disabled={replanning}
+              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-white hover:bg-slate-50 text-purple-800 border border-purple-200 shadow-2xs flex items-center gap-1.5 transition disabled:opacity-50"
+            >
+              <Clock className="w-3.5 h-3.5 text-purple-600" />
+              <span>Trễ giờ / Tắc đường (+45p)</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Replan Result Banner if recently triggered */}
+        {replanNotice && (
+          <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 flex items-start justify-between gap-3 animate-in fade-in duration-200 shadow-xs">
+            <div className="flex items-start gap-2.5">
+              <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+              <div>
+                <h5 className="text-xs font-extrabold uppercase tracking-wide text-emerald-800">
+                  Lộ trình đã được tự động tái lập thành công!
+                </h5>
+                <p className="text-xs text-emerald-700 mt-1 leading-relaxed">
+                  {replanNotice.explanation}
+                </p>
+                {replanNotice.affected.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {replanNotice.affected.map((item, idx) => (
+                      <span key={idx} className="text-[10px] font-bold bg-white/80 px-2 py-0.5 rounded border border-emerald-300 text-emerald-800">
+                        {item}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+            <button
+              onClick={() => setReplanNotice(null)}
+              className="p-1 text-emerald-600 hover:text-emerald-900 transition"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
 
         {/* Day Selector Pills */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1">
@@ -183,8 +325,10 @@ export default function TripDetailPage() {
               <Calendar className="w-3.5 h-3.5" />
               <span>Ngày {d.day_number}</span>
               <span
-                className={`text-[10px] px-1.5 py-0.2 rounded-full ${
-                  selectedDayIdx === idx ? "bg-slate-700 text-slate-200" : "bg-slate-100 text-slate-600"
+                className={`text-[10px] px-2 py-0.5 rounded-full ${
+                  selectedDayIdx === idx
+                    ? "bg-slate-800 text-slate-300"
+                    : "bg-slate-100 text-slate-500"
                 }`}
               >
                 {d.items?.length || 0} điểm
@@ -193,17 +337,17 @@ export default function TripDetailPage() {
           ))}
         </div>
 
-        {/* Split Grid: Timeline on Left, Map on Right */}
+        {/* Split Screen Grid: Left = Timeline, Right = Map */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          {/* Left Column: Timeline */}
+          {/* Left Column: Day Itinerary Timeline */}
           <div className="lg:col-span-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                <Compass className="w-4 h-4 text-blue-600" />
-                <span>Trình tự lịch trình Ngày {currentDay?.day_number || 1}</span>
+            <div className="flex items-center justify-between bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
+              <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                <Clock className="w-4 h-4 text-blue-600" />
+                <span>Lịch trình chi tiết — Ngày {currentDay?.day_number || 1}</span>
               </h3>
-              <span className="text-xs text-slate-400 font-medium">
-                Sắp xếp theo thứ tự tối ưu
+              <span className="text-xs text-slate-500 font-semibold">
+                {currentDay?.items?.length || 0} địa điểm
               </span>
             </div>
 
@@ -214,39 +358,55 @@ export default function TripDetailPage() {
                 onSelectPOI={(poi) => setSelectedPOI(poi)}
               />
             ) : (
-              <div className="p-8 text-center bg-white rounded-2xl border border-slate-200 text-slate-400 text-xs">
-                Chưa có dữ liệu ngày này.
+              <div className="p-8 text-center bg-white rounded-2xl border border-slate-200 text-slate-400 text-sm">
+                Chưa có dữ liệu cho ngày này.
               </div>
             )}
           </div>
 
-          {/* Right Column: Interactive Map with Route */}
+          {/* Right Column: Interactive Map View with Routing */}
           <div className="lg:col-span-7 sticky top-24">
-            <div className="bg-white p-2.5 rounded-2xl border border-slate-200 shadow-xs space-y-2">
-              <div className="flex items-center justify-between px-2 pt-1">
-                <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
+              <div className="p-3.5 border-b border-slate-100 flex items-center justify-between text-xs text-slate-600 bg-white">
+                <span className="font-bold text-slate-800 flex items-center gap-1.5">
                   <MapPin className="w-4 h-4 text-blue-600" />
-                  <span>Bản đồ lộ trình Ngày {currentDay?.day_number || 1}</span>
+                  <span>Bản đồ hành trình tối ưu (OSRM Routing)</span>
                 </span>
-                <span className="text-[11px] font-semibold text-slate-500">
-                  Google Maps Road Layer • OSRM Routing
+                <span className="text-[11px] text-slate-400">
+                  Click vào điểm để xem thông tin
                 </span>
               </div>
 
-              <div className="h-[600px] w-full rounded-xl overflow-hidden border border-slate-100">
-                <MapView
-                  pois={mapPOIs}
-                  selectedPOI={selectedPOI}
-                  onSelectPOI={(poi) => setSelectedPOI(poi)}
-                  center={dayCenter}
-                  zoom={14}
-                  routeGeometry={currentDay?.route_geometry}
-                />
+              <div className="h-[560px] w-full">
+                {currentDay && (
+                  <MapView
+                    pois={currentDay.items.map((it) => ({
+                      ...it.poi,
+                      visit_order: it.visit_order,
+                    }))}
+                    selectedPOI={selectedPOI}
+                    onSelectPOI={(poi) => setSelectedPOI(poi)}
+                    center={
+                      selectedPOI
+                        ? [selectedPOI.latitude, selectedPOI.longitude]
+                        : currentDay.items.length > 0
+                        ? [currentDay.items[0].poi.latitude, currentDay.items[0].poi.longitude]
+                        : [15.8800, 108.3300]
+                    }
+                    zoom={14}
+                    routeGeometry={currentDay.route_geometry}
+                  />
+                )}
               </div>
             </div>
           </div>
         </div>
       </main>
+
+      {/* Footer */}
+      <footer className="text-center py-4 text-xs text-slate-400 border-t border-slate-200 bg-white">
+        ARIA — Adaptive Route Intelligence Assistant © 2026 • AI Engine Powered by Groq & LangChain
+      </footer>
     </div>
   );
 }

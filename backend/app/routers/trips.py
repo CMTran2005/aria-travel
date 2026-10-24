@@ -5,10 +5,16 @@ from app.core.supabase import get_supabase_client
 from app.core.geo import parse_wkb_point
 from app.services.ai_agent import extract_user_intent, score_pois_with_ai
 from app.services.optimizer import schedule_multi_day_trip
-from app.services.routing import get_route_geometry
 from app.services.benchmark import benchmark_greedy_vs_ortools
+from app.services.replanner import replan_trip_itinerary
 
 router = APIRouter(prefix="/trips", tags=["Trips"])
+
+class ReplanTripRequest(BaseModel):
+    trigger_type: str  # "weather_rain" | "poi_closed" | "traffic_delay" | "manual"
+    day_number: Optional[int] = 1
+    closed_poi_id: Optional[int] = None
+    delay_minutes: Optional[int] = 45
 
 class PlanTripRequest(BaseModel):
     user_prompt: str
@@ -258,4 +264,132 @@ def compare_optimization_algorithms(city: str = "Hội An", num_days: int = 2):
     )
     result["city"] = city
     return result
+
+@router.put("/{trip_id}/replan")
+def replan_existing_trip(trip_id: str, payload: ReplanTripRequest):
+    """
+    Sprint 6: Dynamic Real-time Re-planning Endpoint
+    Triggers adaptive itinerary adjustment on weather, closure, or traffic delays.
+    Updates database and logs the replanning event.
+    """
+    client = get_supabase_client()
+    try:
+        # 1. Fetch trip and existing days
+        trip_res = client.table("trips").select("*").eq("id", trip_id).single().execute()
+        trip = trip_res.data
+        if not trip:
+            raise HTTPException(status_code=404, detail="Chuyến đi không tồn tại")
+
+        target_city = trip.get("city", "Hội An")
+
+        # 2. Get existing full itinerary
+        days_res = client.table("itinerary_days").select("*, itinerary_items(*, pois(*))").eq("trip_id", trip_id).order("day_number").execute()
+        existing_days_raw = days_res.data or []
+
+        existing_days = []
+        for day_row in existing_days_raw:
+            sorted_items_raw = sorted(day_row.get("itinerary_items", []), key=lambda x: x.get("visit_order", 0))
+            items = []
+            for item_row in sorted_items_raw:
+                poi_row = item_row.get("pois", {})
+                lat_lon = parse_wkb_point(poi_row.get("location")) if poi_row.get("location") else None
+                lat, lon = lat_lon if lat_lon else (15.8800, 108.3300)
+                poi_obj = {**poi_row, "latitude": lat, "longitude": lon}
+                items.append({
+                    "id": item_row.get("id"),
+                    "poi_id": item_row.get("poi_id"),
+                    "poi": poi_obj,
+                    "visit_order": item_row.get("visit_order"),
+                    "planned_start": str(item_row.get("planned_start", "08:30"))[:5],
+                    "planned_end": str(item_row.get("planned_end", "10:00"))[:5],
+                    "travel_time_to_prev_minutes": item_row.get("travel_time_to_prev_minutes", 0),
+                    "status": item_row.get("status", "planned")
+                })
+            existing_days.append({
+                "id": day_row["id"],
+                "day_number": day_row["day_number"],
+                "items": items
+            })
+
+        # 3. Fetch candidate POIs for replacement
+        pois_res = client.table("pois").select("*").eq("city", target_city).execute()
+        raw_pois = pois_res.data or []
+        all_candidate_pois = []
+        for row in raw_pois:
+            lat_lon = parse_wkb_point(row.get("location")) if row.get("location") else None
+            lat, lon = lat_lon if lat_lon else (15.8800, 108.3300)
+            all_candidate_pois.append({
+                **row,
+                "latitude": lat,
+                "longitude": lon,
+                "ai_score": (row.get("rating") or 4.5) * 2
+            })
+
+        # 4. Run Replanner Engine
+        city_center = (all_candidate_pois[0]["latitude"], all_candidate_pois[0]["longitude"]) if all_candidate_pois else (15.8800, 108.3300)
+        replan_result = replan_trip_itinerary(
+            current_days=existing_days,
+            all_candidate_pois=all_candidate_pois,
+            trigger_type=payload.trigger_type,
+            target_day_number=payload.day_number or 1,
+            closed_poi_id=payload.closed_poi_id,
+            delay_minutes=payload.delay_minutes or 45,
+            city_center=city_center
+        )
+
+        updated_days = replan_result["days"]
+
+        # 5. Update itinerary_items in database
+        for day in updated_days:
+            day_id = day.get("id")
+            if not day_id:
+                # Find day_id from existing
+                match_d = next((d for d in existing_days if d["day_number"] == day["day_number"]), None)
+                day_id = match_d["id"] if match_d else None
+
+            if day_id:
+                # Delete existing items of that day and insert updated items
+                client.table("itinerary_items").delete().eq("day_id", day_id).execute()
+                new_items_records = [
+                    {
+                        "day_id": day_id,
+                        "poi_id": it["poi_id"],
+                        "visit_order": it["visit_order"],
+                        "planned_start": it["planned_start"],
+                        "planned_end": it["planned_end"],
+                        "travel_time_to_prev_minutes": it.get("travel_time_to_prev_minutes", 0),
+                        "status": it.get("status", "planned")
+                    }
+                    for it in day.get("items", [])
+                ]
+                if new_items_records:
+                    client.table("itinerary_items").insert(new_items_records).execute()
+
+        # 6. Log replanning event in replanning_events table
+        try:
+            event_record = {
+                "trip_id": trip_id,
+                "trigger_type": payload.trigger_type,
+                "trigger_data": {"explanation": replan_result["explanation"], "affected": replan_result["affected_pois"]},
+                "old_itinerary": existing_days,
+                "new_itinerary": updated_days
+            }
+            client.table("replanning_events").insert(event_record).execute()
+        except Exception:
+            pass
+
+        return {
+            "status": "success",
+            "trip_id": trip_id,
+            "trigger_type": payload.trigger_type,
+            "explanation": replan_result["explanation"],
+            "affected_pois": replan_result["affected_pois"],
+            "days": updated_days
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Lỗi khi tái lập lịch trình: {str(e)}")
+
 

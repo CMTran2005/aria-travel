@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import trips, pois
+from app.routers import trips, pois, weather
 from app.core.supabase import get_supabase_client
 
 app = FastAPI(
@@ -21,6 +21,7 @@ app.add_middleware(
 # Include Routers
 app.include_router(trips.router, prefix="/api")
 app.include_router(pois.router, prefix="/api")
+app.include_router(weather.router, prefix="/api")
 
 @app.get("/health")
 def health_check():
