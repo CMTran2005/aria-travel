@@ -28,14 +28,7 @@ import {
   Utensils,
   Landmark,
   Trees,
-  Camera,
-  Coffee,
-  ShoppingBag,
-  Sparkle,
-  History,
   Activity,
-  Wine,
-  Hammer
 } from "lucide-react";
 
 // Geographic data for cascading selection
