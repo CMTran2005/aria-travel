@@ -39,6 +39,7 @@ export const CATEGORY_LABELS_VI: Record<string, string> = {
   "church": "Nhà thờ",
 
   // Leisure & Activities
+  "leisure": "Giải trí",
   "theme_park": "Công viên giải trí",
   "nightclub": "Vũ trường / Hộp đêm",
   "cinema": "Rạp chiếu phim",

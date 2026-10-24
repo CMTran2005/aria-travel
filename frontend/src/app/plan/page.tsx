@@ -4,7 +4,9 @@ import { useState, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { planTripWithAI } from "@/lib/api";
-import { getCategoryLabelVi, formatVnd, formatCostVi } from "@/lib/formatters";
+import { getCategoryLabelVi, formatCostVi, formatVnd } from "@/lib/formatters";
+import CustomSelect, { CustomSelectGroup, CustomSelectOption } from "@/components/ui/CustomSelect";
+import DualThumbRangeSlider from "@/components/ui/DualThumbRangeSlider";
 import {
   Sparkles,
   ArrowRight,
@@ -21,10 +23,22 @@ import {
   Star,
   Check,
   Globe,
-  Sliders
+  Plus,
+  Minus,
+  Utensils,
+  Landmark,
+  Trees,
+  Camera,
+  Coffee,
+  ShoppingBag,
+  Sparkle,
+  History,
+  Activity,
+  Wine,
+  Hammer
 } from "lucide-react";
 
-// Structure supporting domestic & international expansion
+// Geographic data for cascading selection
 interface RegionData {
   id: string;
   name: string;
@@ -105,20 +119,55 @@ const REGIONS_DATA: RegionData[] = [
   },
 ];
 
-// Expanded Travel Styles in Vietnamese
-const TRAVEL_STYLES = [
-  { id: "food", label: "Ẩm thực & Đặc sản" },
-  { id: "cultural", label: "Văn hóa & Di tích" },
-  { id: "photography", label: "Check-in & Sống ảo" },
-  { id: "nature", label: "Thiên nhiên & Cảnh quan" },
-  { id: "relaxation", label: "Nghỉ dưỡng & Thư giãn" },
-  { id: "adventure", label: "Trải nghiệm & Khám phá" },
-  { id: "shopping", label: "Mua sắm & Chợ địa phương" },
-  { id: "nightlife", label: "Giải trí về đêm & Quán bar" },
-  { id: "wellness", label: "Spa & Chăm sóc sức khỏe" },
-  { id: "outdoor", label: "Thể thao & Hoạt động ngoài trời" },
-  { id: "history", label: "Lịch sử & Bảo tàng" },
-  { id: "craft_villages", label: "Làng nghề & Văn hóa dân gian" },
+// Well-defined, non-overlapping style categories
+interface StyleCategoryGroup {
+  id: string;
+  name: string;
+  icon: any;
+  items: { id: string; label: string; desc: string }[];
+}
+
+const CATEGORIZED_STYLES: StyleCategoryGroup[] = [
+  {
+    id: "culture_history",
+    name: "Văn hóa & Di sản",
+    icon: Landmark,
+    items: [
+      { id: "heritage", label: "Di sản & Công trình cổ", desc: "Phố cổ, đền miếu, hoàng thành, di tích kiến trúc" },
+      { id: "history", label: "Lịch sử & Bảo tàng", desc: "Bảo tàng lịch sử, dấu ấn chiến tích, tư liệu chiến tranh" },
+      { id: "craft_villages", label: "Làng nghề truyền thống", desc: "Làng gốm, đèn lồng, dệt lụa, làm nón dân gian" },
+    ],
+  },
+  {
+    id: "nature_sightseeing",
+    name: "Thiên nhiên & Cảnh quan",
+    icon: Trees,
+    items: [
+      { id: "nature", label: "Thắng cảnh thiên nhiên", desc: "Đồi thông, núi đá, rừng nguyên sinh, thác nước" },
+      { id: "beach", label: "Biển đảo & Vịnh biển", desc: "Tắm biển, lặn san hô, hoàng hôn và bãi cát trải dài" },
+      { id: "photography", label: "Check-in & Điểm chụp ảnh đẹp", desc: "Quán cafe view cao, điểm ngắm cảnh panorama sống ảo" },
+    ],
+  },
+  {
+    id: "culinary_lifestyle",
+    name: "Ẩm thực & Đời sống địa phương",
+    icon: Utensils,
+    items: [
+      { id: "street_food", label: "Ẩm thực đường phố & Đặc sản", desc: "Món ngon bản địa, quán ăn lâu đời, gánh hàng rong" },
+      { id: "cafe_chill", label: "Quán cà phê & Không gian yên tĩnh", desc: "Thưởng thức cà phê đặc sản, đọc sách, ngắm phố xá" },
+      { id: "local_market", label: "Chợ truyền thống & Mua sắm", desc: "Khám phá chợ đêm, mua quà lưu niệm, đồ thủ công" },
+    ],
+  },
+  {
+    id: "wellness_adventure",
+    name: "Nghỉ ngơi & Hoạt động trải nghiệm",
+    icon: Activity,
+    items: [
+      { id: "relaxation", label: "Nghỉ dưỡng & Tái tạo năng lượng", desc: "Tắm khoáng, spa trị liệu, không gian thanh bình" },
+      { id: "outdoor", label: "Hoạt động ngoài trời & Vận động", desc: "Trekking đường mòn, chèo thuyền SUP, đạp xe đồng quê" },
+      { id: "nightlife", label: "Giải trí về đêm & Bar/Pub", desc: "Acoustic bar, phố đi bộ náo nhiệt, thưởng thức cocktail" },
+    ],
+  },
 ];
 
 const GROUP_TYPES = [
@@ -126,22 +175,6 @@ const GROUP_TYPES = [
   { id: "couple", label: "Cặp đôi (Couple)" },
   { id: "friends", label: "Nhóm bạn bè" },
   { id: "family", label: "Gia đình" },
-];
-
-// Preset step values for VND budget slider: 0 to 50,000,000 VND
-// 0 means "Không giới hạn"
-const BUDGET_STEPS = [
-  0,
-  1_000_000,
-  2_000_000,
-  3_000_000,
-  5_000_000,
-  7_000_000,
-  10_000_000,
-  15_000_000,
-  20_000_000,
-  30_000_000,
-  50_000_000,
 ];
 
 export default function PlanPage() {
@@ -152,18 +185,18 @@ export default function PlanPage() {
   const [selectedRegionId, setSelectedRegionId] = useState("mien-trung");
   const [selectedCity, setSelectedCity] = useState("Hội An");
 
-  // Editable number of days (free input)
+  // Compact number of days
   const [numDays, setNumDays] = useState<number>(2);
 
-  // Budget slider in VND (index in BUDGET_STEPS)
-  // 0 index = 0 VND = Không giới hạn
-  const [budgetStepIdx, setBudgetStepIdx] = useState<number>(4); // default 5,000,000 VND
+  // Dual thumb budget range in VND: [minBudget, maxBudget]
+  // 0 to 50,000,000 VND
+  const [budgetRange, setBudgetRange] = useState<[number, number]>([0, 10_000_000]);
 
   // Group & Travel Styles
   const [selectedGroup, setSelectedGroup] = useState("couple");
   const [selectedStyles, setSelectedStyles] = useState<string[]>([
-    "food",
-    "cultural",
+    "street_food",
+    "heritage",
     "photography",
   ]);
   const [customNotes, setCustomNotes] = useState("");
@@ -181,6 +214,37 @@ export default function PlanPage() {
     return REGIONS_DATA.find((r) => r.id === selectedRegionId) || REGIONS_DATA[0];
   }, [selectedRegionId]);
 
+  // Formatted Region Select Groups
+  const regionSelectGroups: CustomSelectGroup[] = useMemo(() => {
+    return [
+      {
+        label: "Việt Nam (Trong nước)",
+        options: REGIONS_DATA.filter((r) => r.scope === "domestic").map((r) => ({
+          value: r.id,
+          label: r.name,
+          badge: `${r.cities.length} điểm đến`,
+        })),
+      },
+      {
+        label: "Quốc tế (Sắp mở rộng)",
+        options: REGIONS_DATA.filter((r) => r.scope === "international").map((r) => ({
+          value: r.id,
+          label: r.name,
+          badge: `${r.cities.length} điểm đến`,
+        })),
+      },
+    ];
+  }, []);
+
+  // Formatted City Select Options
+  const citySelectOptions: CustomSelectOption[] = useMemo(() => {
+    return currentRegion.cities.map((c) => ({
+      value: c.name,
+      label: c.name,
+      desc: c.desc,
+    }));
+  }, [currentRegion]);
+
   const handleRegionChange = (newRegionId: string) => {
     setSelectedRegionId(newRegionId);
     const region = REGIONS_DATA.find((r) => r.id === newRegionId);
@@ -195,7 +259,20 @@ export default function PlanPage() {
     );
   };
 
-  const currentBudgetVnd = BUDGET_STEPS[budgetStepIdx] || 0;
+  // Helper text for budget
+  const budgetDisplayText = useMemo(() => {
+    const [minB, maxB] = budgetRange;
+    if (minB === 0 && maxB >= 50_000_000) {
+      return "Không giới hạn ngân sách (thỏa sức trải nghiệm)";
+    }
+    if (minB === 0) {
+      return `Dưới ${formatVnd(maxB)}`;
+    }
+    if (maxB >= 50_000_000) {
+      return `Từ ${formatVnd(minB)} trở lên`;
+    }
+    return `Từ ${formatVnd(minB)} đến ${formatVnd(maxB)}`;
+  }, [budgetRange]);
 
   const handlePlan = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -207,17 +284,15 @@ export default function PlanPage() {
 
     let finalPrompt = "";
     if (inputMode === "builder") {
+      // Collect all selected style labels
+      const allStylesFlat = CATEGORIZED_STYLES.flatMap((g) => g.items);
       const stylesStr = selectedStyles
-        .map((s) => TRAVEL_STYLES.find((t) => t.id === s)?.label)
+        .map((s) => allStylesFlat.find((item) => item.id === s)?.label)
         .filter(Boolean)
         .join(", ");
       const groupStr = GROUP_TYPES.find((g) => g.id === selectedGroup)?.label || selectedGroup;
-      const budgetText =
-        currentBudgetVnd > 0
-          ? `Ngân sách dự kiến: ${currentBudgetVnd.toLocaleString("vi-VN")} ₫.`
-          : "Ngân sách: Không giới hạn ngân sách (thoải mái).";
 
-      finalPrompt = `Tôi muốn lập kế hoạch du lịch tại ${selectedCity} (${currentRegion.name}) trong thời gian ${validDays} ngày. Nhóm du khách: ${groupStr}. ${budgetText} Phong cách ưu tiên: ${
+      finalPrompt = `Tôi muốn lập kế hoạch du lịch tại ${selectedCity} (${currentRegion.name}) trong thời gian ${validDays} ngày. Nhóm du khách: ${groupStr}. Ngân sách dự kiến: ${budgetDisplayText}. Phong cách ưu tiên: ${
         stylesStr || "Tổng hợp hài hòa"
       }.${customNotes ? ` Yêu cầu bổ sung: ${customNotes}.` : ""}`;
     } else {
@@ -274,7 +349,7 @@ export default function PlanPage() {
                 Thiết lập chuyến đi của bạn
               </h1>
               <p className="mt-2 text-sm text-slate-600">
-                Lựa chọn điểm đến, số ngày, ngân sách và sở thích cá nhân để AI tối ưu hóa lộ trình từng ngày.
+                Lựa chọn điểm đến, số ngày, khoảng ngân sách và phong cách trải nghiệm để AI tối ưu hóa lộ trình từng ngày.
               </p>
             </div>
 
@@ -289,7 +364,7 @@ export default function PlanPage() {
               onSubmit={handlePlan}
               className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-sm space-y-7"
             >
-              {/* Destination Section: 2 Cascading Dropdowns */}
+              {/* Destination Section: 2 Custom Dropdowns side-by-side */}
               <div>
                 <label className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-700 mb-3">
                   <MapPin className="w-4 h-4 text-blue-600" />
@@ -297,68 +372,31 @@ export default function PlanPage() {
                 </label>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  {/* Dropdown 1: Region */}
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1.5">
-                      Khu vực / Miền
-                    </label>
-                    <div className="relative">
-                      <select
-                        value={selectedRegionId}
-                        onChange={(e) => handleRegionChange(e.target.value)}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 hover:bg-slate-100/70 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-600 transition cursor-pointer appearance-none"
-                      >
-                        <optgroup label="Việt Nam (Trong nước)">
-                          {REGIONS_DATA.filter((r) => r.scope === "domestic").map((r) => (
-                            <option key={r.id} value={r.id}>
-                              {r.name}
-                            </option>
-                          ))}
-                        </optgroup>
-                        <optgroup label="Quốc tế (Sắp mở rộng)">
-                          {REGIONS_DATA.filter((r) => r.scope === "international").map((r) => (
-                            <option key={r.id} value={r.id}>
-                              {r.name}
-                            </option>
-                          ))}
-                        </optgroup>
-                      </select>
-                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
-                        <Globe className="w-4 h-4" />
-                      </div>
-                    </div>
-                  </div>
+                  {/* Custom Dropdown 1: Region */}
+                  <CustomSelect
+                    label="Khu vực / Miền"
+                    icon={<Globe className="w-4 h-4" />}
+                    value={selectedRegionId}
+                    onChange={handleRegionChange}
+                    groups={regionSelectGroups}
+                  />
 
-                  {/* Dropdown 2: City / Province */}
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1.5">
-                      Tỉnh / Thành phố
-                    </label>
-                    <div className="relative">
-                      <select
-                        value={selectedCity}
-                        onChange={(e) => setSelectedCity(e.target.value)}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 hover:bg-slate-100/70 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-600 transition cursor-pointer appearance-none"
-                      >
-                        {currentRegion.cities.map((c) => (
-                          <option key={c.name} value={c.name}>
-                            {c.name}
-                          </option>
-                        ))}
-                      </select>
-                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
-                        <MapPin className="w-4 h-4" />
-                      </div>
-                    </div>
-                  </div>
+                  {/* Custom Dropdown 2: City / Province */}
+                  <CustomSelect
+                    label="Tỉnh / Thành phố"
+                    icon={<MapPin className="w-4 h-4" />}
+                    value={selectedCity}
+                    onChange={(val) => setSelectedCity(val)}
+                    options={citySelectOptions}
+                  />
                 </div>
 
                 {/* Subtitle description for the selected city */}
                 {(() => {
                   const cityObj = currentRegion.cities.find((c) => c.name === selectedCity);
                   return cityObj ? (
-                    <p className="mt-2 text-xs text-slate-500 italic flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-blue-600 inline-block" />
+                    <p className="mt-2.5 text-xs text-slate-500 italic flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-blue-600 inline-block shrink-0" />
                       <span>{cityObj.desc}</span>
                     </p>
                   ) : null;
@@ -402,91 +440,103 @@ export default function PlanPage() {
                 {/* Mode 1: Option Builder Mode */}
                 {inputMode === "builder" ? (
                   <div className="space-y-6">
-                    {/* Duration (Free Editable Number Input) & Budget Slider (VND) */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                      {/* 1. Free Number of Days Input */}
-                      <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
+                    {/* Compact Duration & Dual-Thumb Budget Slider */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                      {/* 1. Compact Stepper for Number of Days */}
+                      <div className="p-4 rounded-2xl bg-slate-50/70 border border-slate-200 flex flex-col justify-between">
                         <div className="flex items-center justify-between mb-2">
                           <label className="flex items-center gap-1.5 text-xs font-bold text-slate-700">
                             <Calendar className="w-3.5 h-3.5 text-blue-600" />
                             <span>Số ngày chuyến đi</span>
                           </label>
-                          <span className="text-xs font-semibold text-slate-500">
-                            Tùy chỉnh linh hoạt
+                          <span className="text-[11px] font-semibold text-slate-400">
+                            1 – 30 ngày
                           </span>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="number"
-                            min={1}
-                            max={30}
-                            value={numDays}
-                            onChange={(e) => {
-                              const val = parseInt(e.target.value, 10);
-                              setNumDays(isNaN(val) ? 1 : Math.max(1, Math.min(val, 30)));
-                            }}
-                            className="w-24 px-3.5 py-2 rounded-lg border border-slate-300 bg-white text-base font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-600 text-center shadow-xs"
-                          />
-                          <span className="text-sm font-semibold text-slate-700">ngày</span>
 
-                          {/* Quick preset chips */}
-                          <div className="flex items-center gap-1 ml-auto">
-                            {[1, 2, 3, 5, 7].map((preset) => (
-                              <button
-                                key={preset}
-                                type="button"
-                                onClick={() => setNumDays(preset)}
-                                className={`px-2 py-1 rounded text-[11px] font-bold transition ${
-                                  numDays === preset
-                                    ? "bg-blue-600 text-white"
-                                    : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
-                                }`}
-                              >
-                                {preset}N
-                              </button>
-                            ))}
+                        {/* Compact inline stepper */}
+                        <div className="flex items-center justify-between bg-white border border-slate-200 rounded-xl p-1.5 shadow-2xs mt-1">
+                          <button
+                            type="button"
+                            onClick={() => setNumDays((prev) => Math.max(1, prev - 1))}
+                            disabled={numDays <= 1}
+                            className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-700 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                            title="Giảm 1 ngày"
+                          >
+                            <Minus className="w-4 h-4" />
+                          </button>
+
+                          <div className="flex items-baseline gap-1">
+                            <input
+                              type="number"
+                              min={1}
+                              max={30}
+                              value={numDays}
+                              onChange={(e) => {
+                                const val = parseInt(e.target.value, 10);
+                                setNumDays(isNaN(val) ? 1 : Math.max(1, Math.min(val, 30)));
+                              }}
+                              className="w-12 text-center text-lg font-black text-slate-900 bg-transparent focus:outline-none"
+                            />
+                            <span className="text-xs font-bold text-slate-500">ngày</span>
                           </div>
+
+                          <button
+                            type="button"
+                            onClick={() => setNumDays((prev) => Math.min(30, prev + 1))}
+                            disabled={numDays >= 30}
+                            className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-700 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                            title="Tăng 1 ngày"
+                          >
+                            <Plus className="w-4 h-4" />
+                          </button>
                         </div>
-                        <p className="text-[11px] text-slate-400 mt-2">
-                          Bạn có thể nhập số ngày bất kỳ từ 1 đến 30 ngày.
-                        </p>
+
+                        {/* Quick preset chips */}
+                        <div className="flex items-center gap-1.5 mt-2.5">
+                          {[1, 2, 3, 5, 7].map((preset) => (
+                            <button
+                              key={preset}
+                              type="button"
+                              onClick={() => setNumDays(preset)}
+                              className={`flex-1 py-1 rounded-md text-[11px] font-bold transition border ${
+                                numDays === preset
+                                  ? "bg-blue-600 text-white border-blue-600 shadow-2xs"
+                                  : "bg-white text-slate-600 border-slate-200 hover:bg-slate-100"
+                              }`}
+                            >
+                              {preset}N
+                            </button>
+                          ))}
+                        </div>
                       </div>
 
-                      {/* 2. Budget Range Slider in VND */}
-                      <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-                        <div className="flex items-center justify-between mb-2">
+                      {/* 2. Dual Thumb Range Slider in VND */}
+                      <div className="p-4 rounded-2xl bg-slate-50/70 border border-slate-200 flex flex-col justify-between">
+                        <div className="flex items-center justify-between mb-1">
                           <label className="flex items-center gap-1.5 text-xs font-bold text-slate-700">
                             <DollarSign className="w-3.5 h-3.5 text-emerald-600" />
-                            <span>Ngân sách dự kiến (VND)</span>
+                            <span>Khoảng ngân sách dự kiến</span>
                           </label>
                           <span className="text-xs font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
-                            {formatVnd(currentBudgetVnd)}
+                            {budgetDisplayText}
                           </span>
                         </div>
 
-                        {/* Range slider */}
-                        <div className="mt-3">
-                          <input
-                            type="range"
+                        {/* Dual Circle Range Slider Component */}
+                        <div className="mt-1">
+                          <DualThumbRangeSlider
                             min={0}
-                            max={BUDGET_STEPS.length - 1}
-                            step={1}
-                            value={budgetStepIdx}
-                            onChange={(e) => setBudgetStepIdx(parseInt(e.target.value, 10))}
-                            className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                            max={50_000_000}
+                            step={1_000_000}
+                            minValue={budgetRange[0]}
+                            maxValue={budgetRange[1]}
+                            onChange={(min, max) => setBudgetRange([min, max])}
                           />
-                          <div className="flex justify-between text-[10px] text-slate-400 mt-1.5 font-medium">
-                            <span>Không giới hạn</span>
-                            <span>5 triệu</span>
-                            <span>20 triệu</span>
-                            <span>50 triệu</span>
-                          </div>
                         </div>
 
                         <p className="text-[11px] text-slate-400 mt-2">
-                          {currentBudgetVnd === 0
-                            ? "Mặc định không giới hạn ngân sách (thỏa sức trải nghiệm)."
-                            : `AI sẽ tối ưu các điểm đến và chi phí phù hợp hạn mức ${formatVnd(currentBudgetVnd)}.`}
+                          Kéo 2 chấm tròn để chọn ngân sách sàn & trần (Mốc 0 ₫ tương đương không giới hạn).
                         </p>
                       </div>
                     </div>
@@ -515,42 +565,68 @@ export default function PlanPage() {
                       </div>
                     </div>
 
-                    {/* Travel Style Checkboxes (Expanded Vietnamese Options) */}
+                    {/* Travel Styles Grouped By Clear Non-Overlapping Categories */}
                     <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <label className="flex items-center gap-1.5 text-xs font-bold text-slate-700">
-                          <Compass className="w-3.5 h-3.5 text-slate-400" />
-                          <span>Sở thích & Phong cách trải nghiệm (chọn nhiều)</span>
+                      <div className="flex items-center justify-between mb-3">
+                        <label className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-700">
+                          <Compass className="w-3.5 h-3.5 text-blue-600" />
+                          <span>Sở thích & Phong cách trải nghiệm (phân loại rõ ràng)</span>
                         </label>
-                        <span className="text-[11px] text-slate-400 font-medium">
+                        <span className="text-[11px] text-blue-600 font-bold bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
                           Đã chọn {selectedStyles.length} mục
                         </span>
                       </div>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                        {TRAVEL_STYLES.map((st) => {
-                          const active = selectedStyles.includes(st.id);
+
+                      <div className="space-y-4">
+                        {CATEGORIZED_STYLES.map((group) => {
+                          const IconComp = group.icon;
                           return (
-                            <button
-                              key={st.id}
-                              type="button"
-                              onClick={() => toggleStyle(st.id)}
-                              className={`p-3 rounded-xl border text-xs text-left transition flex items-center justify-between ${
-                                active
-                                  ? "bg-blue-50/70 border-blue-600 text-blue-900 font-bold"
-                                  : "bg-white border-slate-200 text-slate-700 hover:border-slate-300"
-                              }`}
-                            >
-                              <span>{st.label}</span>
-                              <div
-                                className={`w-4 h-4 rounded-md border flex items-center justify-center transition shrink-0 ml-2 ${
-                                  active
-                                    ? "bg-blue-600 border-blue-600 text-white"
-                                    : "border-slate-300 bg-white"
-                                }`}
-                              >
-                                {active && <Check className="w-3 h-3 stroke-[3]" />}
+                            <div key={group.id} className="p-3.5 bg-slate-50/60 rounded-2xl border border-slate-200">
+                              <div className="flex items-center gap-2 mb-2.5">
+                                <span className="p-1.5 bg-white rounded-lg border border-slate-200 text-blue-600">
+                                  <IconComp className="w-3.5 h-3.5" />
+                                </span>
+                                <span className="text-xs font-extrabold text-slate-800">
+                                  {group.name}
+                                </span>
                               </div>
-                            </button>
+
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                {group.items.map((item) => {
+                                  const active = selectedStyles.includes(item.id);
+                                  return (
+                                    <button
+                                      key={item.id}
+                                      type="button"
+                                      onClick={() => toggleStyle(item.id)}
+                                      className={`p-3 rounded-xl border text-left transition flex flex-col justify-between ${
+                                        active
+                                          ? "bg-white border-blue-600 ring-1 ring-blue-600 text-blue-950 shadow-xs"
+                                          : "bg-white border-slate-200 text-slate-700 hover:border-slate-300"
+                                      }`}
+                                    >
+                                      <div className="flex items-start justify-between gap-1 mb-1">
+                                        <span className={`text-xs font-bold ${active ? "text-blue-900" : "text-slate-900"}`}>
+                                          {item.label}
+                                        </span>
+                                        <div
+                                          className={`w-4 h-4 rounded-md border flex items-center justify-center transition shrink-0 ${
+                                            active
+                                              ? "bg-blue-600 border-blue-600 text-white"
+                                              : "border-slate-300 bg-white"
+                                          }`}
+                                        >
+                                          {active && <Check className="w-3 h-3 stroke-[3]" />}
+                                        </div>
+                                      </div>
+                                      <p className="text-[10px] text-slate-400 line-clamp-2 leading-tight">
+                                        {item.desc}
+                                      </p>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
                           );
                         })}
                       </div>
@@ -581,7 +657,7 @@ export default function PlanPage() {
                       required={inputMode === "freetext"}
                       value={freeTextPrompt}
                       onChange={(e) => setFreeTextPrompt(e.target.value)}
-                      placeholder="Ví dụ: Tôi muốn đi Hội An 3 ngày với ngân sách tầm 5 triệu VND, muốn trải nghiệm ẩm thực đường phố, chụp ảnh ở các quán cafe đẹp, dành 1 buổi chiều đi rừng dừa Bảy Mẫu, đi cùng bạn gái..."
+                      placeholder="Ví dụ: Tôi muốn đi Hội An 3 ngày với ngân sách tầm 5 đến 10 triệu VND, muốn trải nghiệm ẩm thực đường phố, chụp ảnh ở các quán cafe đẹp, dành 1 buổi chiều đi rừng dừa Bảy Mẫu, đi cùng bạn gái..."
                       className="w-full p-4 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm text-slate-800 placeholder:text-slate-400"
                     />
                   </div>
@@ -660,7 +736,7 @@ export default function PlanPage() {
                   <DollarSign className="w-3.5 h-3.5 text-emerald-600" /> Ngân sách
                 </span>
                 <p className="text-base font-bold text-slate-900 mt-1">
-                  {formatVnd(currentBudgetVnd)}
+                  {budgetDisplayText}
                 </p>
               </div>
               <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
@@ -679,9 +755,7 @@ export default function PlanPage() {
                 </span>
                 <p className="text-xs font-bold text-slate-900 mt-1 truncate">
                   {Array.isArray(result.intent?.travel_style)
-                    ? result.intent.travel_style
-                        .map((s: string) => TRAVEL_STYLES.find((t) => t.id === s)?.label || s)
-                        .join(", ")
+                    ? result.intent.travel_style.join(", ")
                     : "Ẩm thực, di tích, ngắm cảnh"}
                 </p>
               </div>
