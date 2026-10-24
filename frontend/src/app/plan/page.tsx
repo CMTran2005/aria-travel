@@ -29,6 +29,8 @@ import {
   Landmark,
   Trees,
   Activity,
+  Layers,
+  Sparkle
 } from "lucide-react";
 
 // Geographic data for cascading selection
@@ -182,7 +184,6 @@ export default function PlanPage() {
   const [numDays, setNumDays] = useState<number>(2);
 
   // Dual thumb budget range in VND: [minBudget, maxBudget]
-  // 0 to 50,000,000 VND
   const [budgetRange, setBudgetRange] = useState<[number, number]>([0, 10_000_000]);
 
   // Group & Travel Styles
@@ -256,7 +257,7 @@ export default function PlanPage() {
   const budgetDisplayText = useMemo(() => {
     const [minB, maxB] = budgetRange;
     if (minB === 0 && maxB >= 50_000_000) {
-      return "Không giới hạn ngân sách";
+      return "Không giới hạn";
     }
     if (minB === 0) {
       return `Dưới ${formatVnd(maxB)}`;
@@ -272,12 +273,10 @@ export default function PlanPage() {
     setLoading(true);
     setErrorMsg(null);
 
-    // Validate days
     const validDays = Math.max(1, Math.min(Number(numDays) || 1, 30));
 
     let finalPrompt = "";
     if (inputMode === "builder") {
-      // Collect all selected style labels
       const allStylesFlat = CATEGORIZED_STYLES.flatMap((g) => g.items);
       const stylesStr = selectedStyles
         .map((s) => allStylesFlat.find((item) => item.id === s)?.label)
@@ -285,9 +284,8 @@ export default function PlanPage() {
         .join(", ");
       const groupStr = GROUP_TYPES.find((g) => g.id === selectedGroup)?.label || selectedGroup;
 
-      finalPrompt = `Tôi muốn lập kế hoạch du lịch tại ${selectedCity} (${currentRegion.name}) trong thời gian ${validDays} ngày. Nhóm du khách: ${groupStr}. Ngân sách dự kiến: ${budgetDisplayText}. Phong cách ưu tiên: ${
-        stylesStr || "Tổng hợp hài hòa"
-      }.${customNotes ? ` Yêu cầu bổ sung: ${customNotes}.` : ""}`;
+      finalPrompt = `Tôi muốn lập kế hoạch du lịch tại ${selectedCity} (${currentRegion.name}) trong thời gian ${validDays} ngày. Nhóm du khách: ${groupStr}. Ngân sách dự kiến: ${budgetDisplayText}. Phong cách ưu tiên: ${stylesStr || "Tổng hợp hài hòa"
+        }.${customNotes ? ` Yêu cầu bổ sung: ${customNotes}.` : ""}`;
     } else {
       finalPrompt = freeTextPrompt;
       if (!finalPrompt.trim()) {
@@ -328,11 +326,11 @@ export default function PlanPage() {
         </div>
       </header>
 
-      {/* Main Container */}
-      <main className="flex-1 max-w-5xl w-full mx-auto p-4 sm:p-6 lg:p-8">
+      {/* Main Container - Extended Full Width (max-w-7xl) for horizontal balance */}
+      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
         {!result ? (
-          <div className="max-w-3xl mx-auto">
-            {/* Header Title */}
+          <div>
+            {/* Header Title Banner */}
             <div className="text-center mb-8">
               <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-600 bg-slate-100 px-3 py-1 rounded-full mb-3 border border-slate-200">
                 <Compass className="w-3.5 h-3.5 text-blue-600" />
@@ -347,7 +345,7 @@ export default function PlanPage() {
             </div>
 
             {errorMsg && (
-              <div className="mb-6 p-4 rounded-xl bg-rose-50 text-rose-700 text-sm border border-rose-200 flex items-center gap-2">
+              <div className="mb-6 p-4 rounded-xl bg-rose-50 text-rose-700 text-sm border border-rose-200 flex items-center gap-2 max-w-3xl mx-auto">
                 <span className="w-2 h-2 rounded-full bg-rose-600 shrink-0" />
                 <span>{errorMsg}</span>
               </div>
@@ -357,15 +355,14 @@ export default function PlanPage() {
               onSubmit={handlePlan}
               className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-sm space-y-7"
             >
-              {/* Destination Section: 2 Custom Dropdowns side-by-side */}
+              {/* Row 1: Destination (Cascading Dropdowns) */}
               <div>
                 <label className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-700 mb-3">
                   <MapPin className="w-4 h-4 text-blue-600" />
                   <span>Điểm đến du lịch</span>
                 </label>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  {/* Custom Dropdown 1: Region */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <CustomSelect
                     label="Khu vực / Miền"
                     icon={<Globe className="w-4 h-4" />}
@@ -374,7 +371,6 @@ export default function PlanPage() {
                     groups={regionSelectGroups}
                   />
 
-                  {/* Custom Dropdown 2: City / Province */}
                   <CustomSelect
                     label="Tỉnh / Thành phố"
                     icon={<MapPin className="w-4 h-4" />}
@@ -384,11 +380,10 @@ export default function PlanPage() {
                   />
                 </div>
 
-                {/* Subtitle description for the selected city */}
                 {(() => {
                   const cityObj = currentRegion.cities.find((c) => c.name === selectedCity);
                   return cityObj ? (
-                    <p className="mt-2.5 text-xs text-slate-500 italic flex items-center gap-1.5">
+                    <p className="mt-2 text-xs text-slate-500 italic flex items-center gap-1.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-blue-600 inline-block shrink-0" />
                       <span>{cityObj.desc}</span>
                     </p>
@@ -433,22 +428,19 @@ export default function PlanPage() {
                 {/* Mode 1: Option Builder Mode */}
                 {inputMode === "builder" ? (
                   <div className="space-y-6">
-                    {/* Compact Duration & Dual-Thumb Budget Slider */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                      {/* 1. Compact Stepper for Number of Days */}
+                    {/* Row 2: Duration, Budget & Group Type (Compact 3-column row on large screens) */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {/* 1. Compact Days Stepper */}
                       <div className="p-4 rounded-2xl bg-slate-50/70 border border-slate-200 flex flex-col justify-between">
                         <div className="flex items-center justify-between mb-2">
                           <label className="flex items-center gap-1.5 text-xs font-bold text-slate-700">
                             <Calendar className="w-3.5 h-3.5 text-blue-600" />
-                            <span>Số ngày chuyến đi</span>
+                            <span>Số ngày</span>
                           </label>
-                          <span className="text-[11px] font-semibold text-slate-400">
-                            1 – 30 ngày
-                          </span>
+                          <span className="text-[11px] font-semibold text-slate-400">1 – 30 ngày</span>
                         </div>
 
-                        {/* Compact inline stepper */}
-                        <div className="flex items-center justify-between bg-white border border-slate-200 rounded-xl p-1.5 shadow-2xs mt-1">
+                        <div className="flex items-center justify-between bg-white border border-slate-200 rounded-xl p-1.5 shadow-2xs">
                           <button
                             type="button"
                             onClick={() => setNumDays((prev) => Math.max(1, prev - 1))}
@@ -485,7 +477,6 @@ export default function PlanPage() {
                           </button>
                         </div>
 
-                        {/* Quick preset chips */}
                         <div className="flex items-center gap-1.5 mt-2.5">
                           {[1, 2, 3, 5, 7].map((preset) => (
                             <button
@@ -504,19 +495,18 @@ export default function PlanPage() {
                         </div>
                       </div>
 
-                      {/* 2. Dual Thumb Range Slider in VND */}
+                      {/* 2. Budget Range Slider */}
                       <div className="p-4 rounded-2xl bg-slate-50/70 border border-slate-200 flex flex-col justify-between">
                         <div className="flex items-center justify-between mb-1">
                           <label className="flex items-center gap-1.5 text-xs font-bold text-slate-700">
                             <DollarSign className="w-3.5 h-3.5 text-emerald-600" />
-                            <span>Khoảng ngân sách dự kiến</span>
+                            <span>Khoảng ngân sách</span>
                           </label>
                           <span className="text-xs font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
                             {budgetDisplayText}
                           </span>
                         </div>
 
-                        {/* Dual Circle Range Slider Component */}
                         <div className="mt-1">
                           <DualThumbRangeSlider
                             min={0}
@@ -528,53 +518,57 @@ export default function PlanPage() {
                           />
                         </div>
 
-                        <p className="text-[11px] text-slate-400 mt-2">
-                          Kéo 2 chấm tròn để chọn ngân sách sàn & trần (Mốc 0 ₫ tương đương không giới hạn).
+                        <p className="text-[10px] text-slate-400 mt-2">
+                          Kéo 2 chấm để chọn sàn & trần (Mốc 0 ₫ tương đương không giới hạn).
                         </p>
                       </div>
-                    </div>
 
-                    {/* Group Type */}
-                    <div>
-                      <label className="flex items-center gap-1.5 text-xs font-bold text-slate-700 mb-2">
-                        <Users className="w-3.5 h-3.5 text-slate-400" />
-                        <span>Đối tượng / Nhóm đi cùng</span>
-                      </label>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                        {GROUP_TYPES.map((g) => (
-                          <button
-                            key={g.id}
-                            type="button"
-                            onClick={() => setSelectedGroup(g.id)}
-                            className={`p-2.5 rounded-xl border text-xs font-medium transition text-left ${
-                              selectedGroup === g.id
-                                ? "bg-slate-900 border-slate-900 text-white font-bold"
-                                : "bg-white border-slate-200 text-slate-700 hover:border-slate-300"
-                            }`}
-                          >
-                            {g.label}
-                          </button>
-                        ))}
+                      {/* 3. Group Type */}
+                      <div className="p-4 rounded-2xl bg-slate-50/70 border border-slate-200 flex flex-col justify-between">
+                        <div className="flex items-center justify-between mb-2">
+                          <label className="flex items-center gap-1.5 text-xs font-bold text-slate-700">
+                            <Users className="w-3.5 h-3.5 text-purple-600" />
+                            <span>Đối tượng đi cùng</span>
+                          </label>
+                          <span className="text-[11px] font-semibold text-slate-400">Tùy chọn</span>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 my-auto">
+                          {GROUP_TYPES.map((g) => (
+                            <button
+                              key={g.id}
+                              type="button"
+                              onClick={() => setSelectedGroup(g.id)}
+                              className={`p-2 rounded-xl border text-xs font-semibold transition text-center ${
+                                selectedGroup === g.id
+                                  ? "bg-slate-900 border-slate-900 text-white font-bold"
+                                  : "bg-white border-slate-200 text-slate-700 hover:border-slate-300"
+                              }`}
+                            >
+                              {g.label}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     </div>
 
-                    {/* Travel Styles Grouped By Clear Non-Overlapping Categories */}
+                    {/* Row 3: Travel Styles Grouped Horizontally across 4 columns */}
                     <div>
                       <div className="flex items-center justify-between mb-3">
                         <label className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-700">
                           <Compass className="w-3.5 h-3.5 text-blue-600" />
-                          <span>Sở thích & Phong cách trải nghiệm (phân loại rõ ràng)</span>
+                          <span>Sở thích & Phong cách trải nghiệm</span>
                         </label>
-                        <span className="text-[11px] text-blue-600 font-bold bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
+                        <span className="text-[11px] text-blue-600 font-bold bg-blue-50 px-2.5 py-0.5 rounded border border-blue-100">
                           Đã chọn {selectedStyles.length} mục
                         </span>
                       </div>
 
-                      <div className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3.5">
                         {CATEGORIZED_STYLES.map((group) => {
                           const IconComp = group.icon;
                           return (
-                            <div key={group.id} className="p-3.5 bg-slate-50/60 rounded-2xl border border-slate-200">
+                            <div key={group.id} className="p-3.5 bg-slate-50/60 rounded-2xl border border-slate-200 flex flex-col justify-between">
                               <div className="flex items-center gap-2 mb-2.5">
                                 <span className="p-1.5 bg-white rounded-lg border border-slate-200 text-blue-600">
                                   <IconComp className="w-3.5 h-3.5" />
@@ -584,7 +578,7 @@ export default function PlanPage() {
                                 </span>
                               </div>
 
-                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                              <div className="space-y-2">
                                 {group.items.map((item) => {
                                   const active = selectedStyles.includes(item.id);
                                   return (
@@ -592,24 +586,24 @@ export default function PlanPage() {
                                       key={item.id}
                                       type="button"
                                       onClick={() => toggleStyle(item.id)}
-                                      className={`p-3 rounded-xl border text-left transition flex flex-col justify-between ${
+                                      className={`w-full p-2.5 rounded-xl border text-left transition flex flex-col justify-between ${
                                         active
                                           ? "bg-white border-blue-600 ring-1 ring-blue-600 text-blue-950 shadow-xs"
                                           : "bg-white border-slate-200 text-slate-700 hover:border-slate-300"
                                       }`}
                                     >
-                                      <div className="flex items-start justify-between gap-1 mb-1">
+                                      <div className="flex items-start justify-between gap-1 mb-0.5">
                                         <span className={`text-xs font-bold ${active ? "text-blue-900" : "text-slate-900"}`}>
                                           {item.label}
                                         </span>
                                         <div
-                                          className={`w-4 h-4 rounded-md border flex items-center justify-center transition shrink-0 ${
+                                          className={`w-3.5 h-3.5 rounded-md border flex items-center justify-center transition shrink-0 ml-1.5 ${
                                             active
                                               ? "bg-blue-600 border-blue-600 text-white"
                                               : "border-slate-300 bg-white"
                                           }`}
                                         >
-                                          {active && <Check className="w-3 h-3 stroke-[3]" />}
+                                          {active && <Check className="w-2.5 h-2.5 stroke-[3]" />}
                                         </div>
                                       </div>
                                       <p className="text-[10px] text-slate-400 line-clamp-2 leading-tight">
@@ -679,29 +673,38 @@ export default function PlanPage() {
             </form>
           </div>
         ) : (
-          /* Results View */
-          <div className="space-y-8">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
-              <div>
-                <span className="text-xs font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
-                  Phân tích thành công
-                </span>
-                <h2 className="text-2xl font-black text-slate-900 mt-2">
-                  Đề xuất kế hoạch: {result.city} ({result.num_days} ngày)
-                </h2>
-                <p className="text-xs text-slate-500 mt-1">
-                  Đã tạo bản thảo chuyến đi #{result.trip_id?.slice(0, 8) || "draft"}
-                </p>
+          /* Results View - Extended Full Width Horizontal Clean Layout */
+          <div className="space-y-6">
+            {/* Header Banner - Single Horizontal Row */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center shrink-0">
+                  <CheckCircle2 className="w-6 h-6 text-emerald-600" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-extrabold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                      Đã tối ưu lộ trình
+                    </span>
+                    <span className="text-xs text-slate-400">•</span>
+                    <span className="text-xs font-semibold text-slate-500">
+                      Mã chuyến đi #{result.trip_id?.slice(0, 8) || "draft"}
+                    </span>
+                  </div>
+                  <h2 className="text-2xl font-black text-slate-900 mt-1">
+                    Kế hoạch khám phá: {result.city} ({result.num_days} ngày)
+                  </h2>
+                </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2.5">
                 {result.trip_id && (
                   <Link
                     href={`/trips/${result.trip_id}`}
-                    className="text-xs font-bold px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-sm transition flex items-center gap-1.5"
+                    className="text-xs font-bold px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-sm transition flex items-center gap-2"
                   >
                     <Compass className="w-4 h-4" />
-                    <span>Xem lộ trình & Timeline</span>
+                    <span>Xem bản đồ lộ trình & Timeline</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </Link>
                 )}
@@ -709,99 +712,120 @@ export default function PlanPage() {
                   onClick={() => setResult(null)}
                   className="text-xs font-bold px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition"
                 >
-                  Thiết lập chuyến đi khác
+                  Thiết lập lại
                 </button>
               </div>
             </div>
 
-            {/* Extracted Intent Badges */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
-                <span className="text-[11px] font-semibold text-slate-400 uppercase flex items-center gap-1.5">
-                  <Calendar className="w-3.5 h-3.5 text-blue-600" /> Thời gian
-                </span>
-                <p className="text-base font-bold text-slate-900 mt-1">
-                  {result.intent?.num_days || result.num_days} Ngày
-                </p>
+            {/* Extracted Intent Badges - Single 4-column Horizontal Row */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0">
+                  <Calendar className="w-5 h-5 text-blue-600" />
+                </div>
+                <div>
+                  <span className="text-[11px] font-semibold text-slate-400 uppercase block">Thời gian</span>
+                  <p className="text-sm font-bold text-slate-900 mt-0.5">
+                    {result.intent?.num_days || result.num_days} Ngày trải nghiệm
+                  </p>
+                </div>
               </div>
-              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
-                <span className="text-[11px] font-semibold text-slate-400 uppercase flex items-center gap-1.5">
-                  <DollarSign className="w-3.5 h-3.5 text-emerald-600" /> Ngân sách
-                </span>
-                <p className="text-base font-bold text-slate-900 mt-1">
-                  {budgetDisplayText}
-                </p>
+
+              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center shrink-0">
+                  <DollarSign className="w-5 h-5 text-emerald-600" />
+                </div>
+                <div>
+                  <span className="text-[11px] font-semibold text-slate-400 uppercase block">Ngân sách</span>
+                  <p className="text-sm font-bold text-slate-900 mt-0.5 truncate">
+                    {budgetDisplayText}
+                  </p>
+                </div>
               </div>
-              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
-                <span className="text-[11px] font-semibold text-slate-400 uppercase flex items-center gap-1.5">
-                  <Users className="w-3.5 h-3.5 text-purple-600" /> Nhóm đi
-                </span>
-                <p className="text-base font-bold text-slate-900 mt-1 capitalize">
-                  {GROUP_TYPES.find((g) => g.id === result.intent?.group_type)?.label ||
-                    result.intent?.group_type ||
-                    "Cặp đôi"}
-                </p>
+
+              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-purple-50 border border-purple-100 flex items-center justify-center shrink-0">
+                  <Users className="w-5 h-5 text-purple-600" />
+                </div>
+                <div>
+                  <span className="text-[11px] font-semibold text-slate-400 uppercase block">Nhóm đi</span>
+                  <p className="text-sm font-bold text-slate-900 mt-0.5 capitalize truncate">
+                    {GROUP_TYPES.find((g) => g.id === result.intent?.group_type)?.label ||
+                      result.intent?.group_type ||
+                      "Cặp đôi"}
+                  </p>
+                </div>
               </div>
-              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
-                <span className="text-[11px] font-semibold text-slate-400 uppercase flex items-center gap-1.5">
-                  <Compass className="w-3.5 h-3.5 text-amber-600" /> Phong cách
-                </span>
-                <p className="text-xs font-bold text-slate-900 mt-1 truncate">
-                  {Array.isArray(result.intent?.travel_style)
-                    ? result.intent.travel_style.join(", ")
-                    : "Ẩm thực, di tích, ngắm cảnh"}
-                </p>
+
+              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center shrink-0">
+                  <Compass className="w-5 h-5 text-amber-600" />
+                </div>
+                <div className="min-w-0">
+                  <span className="text-[11px] font-semibold text-slate-400 uppercase block">Phong cách</span>
+                  <p className="text-sm font-bold text-slate-900 mt-0.5 truncate">
+                    {Array.isArray(result.intent?.travel_style)
+                      ? result.intent.travel_style.join(", ")
+                      : "Tổng hợp hài hòa"}
+                  </p>
+                </div>
               </div>
             </div>
 
-            {/* Top Recommended POIs */}
+            {/* Top Recommended POIs - 3 Column Wide Grid with Clean Horizontal POI Cards */}
             <div>
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-extrabold text-slate-900">
-                  Địa điểm được AI chấm điểm phù hợp nhất
-                </h3>
-                <span className="text-xs text-slate-500 font-medium">
-                  {result.recommended_pois?.length || 0} địa điểm được chọn lọc
+                <div className="flex items-center gap-2">
+                  <Layers className="w-4 h-4 text-blue-600" />
+                  <h3 className="text-base font-extrabold text-slate-900">
+                    Danh sách địa điểm được AI chọn lọc & phân bổ vào lộ trình
+                  </h3>
+                </div>
+                <span className="text-xs text-slate-500 font-semibold bg-white px-3 py-1 rounded-full border border-slate-200">
+                  {result.recommended_pois?.length || 0} địa điểm
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {result.recommended_pois?.map((poi: any, idx: number) => (
                   <div
                     key={poi.id || idx}
-                    className="p-5 bg-white rounded-2xl border border-slate-200 hover:border-slate-400 transition space-y-2.5 shadow-xs"
+                    className="p-4 bg-white rounded-2xl border border-slate-200 hover:border-slate-300 transition space-y-2.5 shadow-xs flex flex-col justify-between"
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <h4 className="font-bold text-slate-900 text-base">
-                          {poi.name}
-                        </h4>
-                        <span className="text-[11px] uppercase font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
-                          {getCategoryLabelVi(poi.category)}
+                    <div>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <h4 className="font-bold text-slate-900 text-sm truncate">
+                            {poi.name}
+                          </h4>
+                          <span className="text-[10px] uppercase font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-100 inline-block mt-1">
+                            {getCategoryLabelVi(poi.category)}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1 bg-slate-900 text-white px-2 py-0.5 rounded-lg text-xs font-bold shrink-0">
+                          <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                          <span>{poi.ai_score || 8.5}</span>
+                        </div>
+                      </div>
+
+                      <p className="text-[11px] text-slate-400 truncate mt-1">
+                        {poi.address || "Hội An, Quảng Nam"}
+                      </p>
+
+                      <div className="mt-2.5 p-2.5 bg-slate-50 rounded-xl border border-slate-100 text-xs text-slate-600 flex items-start gap-2">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
+                        <span className="line-clamp-2 leading-relaxed text-[11px]">
+                          {poi.ai_reason}
                         </span>
                       </div>
-                      <div className="flex items-center gap-1 bg-slate-900 text-white px-2.5 py-1 rounded-lg text-xs font-extrabold">
-                        <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                        <span>{poi.ai_score || 8.5}</span>
-                        <span className="text-[10px] text-slate-400 font-normal">/10</span>
-                      </div>
                     </div>
 
-                    <p className="text-xs text-slate-500 line-clamp-1">
-                      {poi.address || "Hội An, Quảng Nam"}
-                    </p>
-
-                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 text-xs text-slate-700 flex items-start gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                      <span className="leading-relaxed">{poi.ai_reason}</span>
-                    </div>
-
-                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-600">
-                      <span className="flex items-center gap-1">
-                        <Clock className="w-3.5 h-3.5 text-slate-400" />
+                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                      <span className="flex items-center gap-1 text-[11px]">
+                        <Clock className="w-3 h-3 text-slate-400" />
                         <span>{poi.avg_duration_minutes || 45} phút</span>
                       </span>
-                      <span className="font-semibold text-slate-900">
+                      <span className="font-bold text-slate-800 text-[11px]">
                         {formatCostVi(poi.avg_cost_usd)}
                       </span>
                     </div>
