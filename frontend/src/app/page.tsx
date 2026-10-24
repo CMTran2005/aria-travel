@@ -214,7 +214,6 @@ export default function HomePage() {
               pois={pois}
               selectedPOI={selectedPOI}
               onSelectPOI={(poi: any) => setSelectedPOI(poi)}
-              onUpdateCoordinates={handleUpdateCoordinates}
               center={
                 selectedPOI
                   ? [selectedPOI.latitude, selectedPOI.longitude]
