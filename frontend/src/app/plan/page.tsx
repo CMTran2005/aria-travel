@@ -409,12 +409,24 @@ export default function PlanPage() {
                 </p>
               </div>
 
-              <button
-                onClick={() => setResult(null)}
-                className="text-xs font-bold px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition"
-              >
-                Thiết lập chuyến đi khác
-              </button>
+              <div className="flex items-center gap-2">
+                {result.trip_id && (
+                  <Link
+                    href={`/trips/${result.trip_id}`}
+                    className="text-xs font-bold px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-sm transition flex items-center gap-1.5"
+                  >
+                    <Compass className="w-4 h-4" />
+                    <span>Xem lộ trình & Timeline</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
+                )}
+                <button
+                  onClick={() => setResult(null)}
+                  className="text-xs font-bold px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition"
+                >
+                  Thiết lập chuyến đi khác
+                </button>
+              </div>
             </div>
 
             {/* Extracted Intent Badges */}

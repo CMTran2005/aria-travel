@@ -49,3 +49,13 @@ export async function planTripWithAI(prompt: string, city: string = "Hội An", 
   }
   return res.json();
 }
+
+export async function fetchTripDetail(tripId: string) {
+  const res = await fetch(`${BACKEND_URL}/api/trips/${tripId}`, { cache: "no-store" });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.detail || `Failed to fetch trip: ${res.statusText}`);
+  }
+  return res.json();
+}
+
