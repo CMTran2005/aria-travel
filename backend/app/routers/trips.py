@@ -5,6 +5,7 @@ from app.core.supabase import get_supabase_client
 from app.core.geo import parse_wkb_point
 from app.services.ai_agent import extract_user_intent, score_pois_with_ai
 from app.services.optimizer import schedule_multi_day_trip
+from app.services.routing import get_route_geometry
 from app.services.benchmark import benchmark_greedy_vs_ortools
 from app.services.replanner import replan_trip_itinerary
 
