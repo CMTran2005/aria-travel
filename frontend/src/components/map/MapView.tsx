@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import dynamic from "next/dynamic";
 import "leaflet/dist/leaflet.css";
 import { Star, Clock } from "lucide-react";
+import { getCategoryLabelVi, formatCostVi } from "@/lib/formatters";
 
 // Dynamic imports to prevent SSR window issues
 const MapContainer = dynamic(
@@ -194,8 +195,8 @@ export default function MapView({
               <Popup className="aria-poi-popup">
                 <div className="p-1 max-w-xs">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-[11px] uppercase tracking-wider font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
-                      {poi.category.replace("amenity=", "")}
+                    <span className="text-[11px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
+                      {getCategoryLabelVi(poi.category)}
                     </span>
                     {poi.rating && (
                       <div className="flex items-center gap-0.5 text-xs font-semibold text-amber-600">
@@ -216,7 +217,7 @@ export default function MapView({
                       <span>{poi.avg_duration_minutes || 45} phút</span>
                     </span>
                     <span className="font-semibold text-slate-900">
-                      {poi.avg_cost_usd === 0 ? "Miễn phí" : `$${poi.avg_cost_usd}`}
+                      {formatCostVi(poi.avg_cost_usd)}
                     </span>
                   </div>
                 </div>

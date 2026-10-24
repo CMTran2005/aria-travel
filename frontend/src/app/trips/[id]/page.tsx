@@ -19,6 +19,7 @@ import {
 import MapView, { POI } from "@/components/map/MapView";
 import DayTimeline, { ItineraryDay } from "@/components/timeline/DayTimeline";
 import { fetchTripDetail } from "@/lib/api";
+import { formatCostVi, formatVnd } from "@/lib/formatters";
 
 export default function TripDetailPage() {
   const params = useParams();
@@ -153,7 +154,7 @@ export default function TripDetailPage() {
           <div className="flex flex-wrap items-center gap-4 text-xs font-semibold text-slate-700">
             <div className="flex items-center gap-1.5 bg-slate-50 px-3 py-2 rounded-xl border border-slate-200">
               <DollarSign className="w-4 h-4 text-emerald-600" />
-              <span>Ngân sách: ${trip.budget_usd || 100}</span>
+              <span>Ngân sách: {formatCostVi(trip.budget_usd)}</span>
             </div>
             <div className="flex items-center gap-1.5 bg-slate-50 px-3 py-2 rounded-xl border border-slate-200">
               <Users className="w-4 h-4 text-blue-600" />

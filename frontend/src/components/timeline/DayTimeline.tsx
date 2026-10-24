@@ -3,6 +3,7 @@
 import React from "react";
 import { Clock, Navigation, MapPin, DollarSign, ArrowDown } from "lucide-react";
 import { POI } from "@/components/map/MapView";
+import { getCategoryLabelVi, formatCostVi } from "@/lib/formatters";
 
 export interface ItineraryItem {
   id?: number;
@@ -94,8 +95,8 @@ export default function DayTimeline({
                     <h4 className="text-sm font-bold text-slate-900 truncate">
                       {item.poi.name}
                     </h4>
-                    <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-700 uppercase shrink-0">
-                      {item.poi.category?.replace("amenity=", "")}
+                    <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-100 shrink-0">
+                      {getCategoryLabelVi(item.poi.category)}
                     </span>
                   </div>
 
@@ -127,7 +128,7 @@ export default function DayTimeline({
                       <span className="truncate">{item.poi.address || "Hội An, Quảng Nam"}</span>
                     </span>
                     <span className="font-bold text-slate-900">
-                      {item.poi.avg_cost_usd === 0 ? "Miễn phí" : `$${item.poi.avg_cost_usd}`}
+                      {formatCostVi(item.poi.avg_cost_usd)}
                     </span>
                   </div>
                 </div>

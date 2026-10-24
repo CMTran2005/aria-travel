@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { planTripWithAI } from "@/lib/api";
+import { getCategoryLabelVi, formatVnd, formatCostVi } from "@/lib/formatters";
 import {
   Sparkles,
   ArrowRight,
@@ -18,22 +19,93 @@ import {
   MapPin,
   Clock,
   Star,
-  Check
+  Check,
+  Globe,
+  Sliders
 } from "lucide-react";
 
-const VIETNAM_DESTINATIONS = [
-  { name: "Hội An", region: "Miền Trung", desc: "Phố cổ hoài niệm, ẩm thực đường phố, làng nghề" },
-  { name: "Đà Lạt", region: "Tây Nguyên", desc: "Thành phố sương mù, đồi thông, quán cafe lãng mạn" },
-  { name: "Đà Nẵng", region: "Miền Trung", desc: "Thành phố đáng sống, bãi biển Mỹ Khê, bán đảo Sơn Trà" },
-  { name: "Hà Nội", region: "Miền Bắc", desc: "36 phố phường, di tích lịch sử ngàn năm, ẩm thực truyền thống" },
-  { name: "TP. Hồ Chí Minh", region: "Miền Nam", desc: "Đô thị sôi động, nhịp sống đêm, văn hóa đa dạng" },
-  { name: "Phú Quốc", region: "Miền Nam", desc: "Đảo ngọc, bãi sao, hoàng hôn biển, hải sản tươi ngon" },
-  { name: "Nha Trang", region: "Miền Trung", desc: "Vịnh biển trong xanh, lặn biển ngắm san hô, tắm bùn khoáng" },
-  { name: "Sa Pa", region: "Miền Bắc", desc: "Ruộng bậc thang kỳ vĩ, đỉnh Fansipan, bản làng vùng cao" },
-  { name: "Huế", region: "Miền Trung", desc: "Cố đô trầm mặc, lăng tẩm hoàng gia, nhã nhạc cung đình" },
-  { name: "Ninh Bình", region: "Miền Bắc", desc: "Tràng An non nước hữu tình, Tam Cốc Bích Động" },
+// Structure supporting domestic & international expansion
+interface RegionData {
+  id: string;
+  name: string;
+  scope: "domestic" | "international";
+  cities: { name: string; desc: string }[];
+}
+
+const REGIONS_DATA: RegionData[] = [
+  {
+    id: "mien-bac",
+    name: "Miền Bắc",
+    scope: "domestic",
+    cities: [
+      { name: "Hà Nội", desc: "Thủ đô nghìn năm văn hiến, 36 phố phường, ẩm thực tinh hoa" },
+      { name: "Sa Pa", desc: "Ruộng bậc thang kỳ vĩ, đỉnh Fansipan, bản làng vùng cao" },
+      { name: "Ninh Bình", desc: "Tràng An non nước hữu tình, Tam Cốc Bích Động" },
+      { name: "Hạ Long", desc: "Kỳ quan thiên nhiên thế giới, vịnh biển đảo đá vôi" },
+      { name: "Hà Giang", desc: "Cao nguyên đá Đồng Văn, đèo Mã Pí Lèng hùng vĩ" },
+      { name: "Điện Biên", desc: "Di tích lịch sử hào hùng, thung lũng Mường Thanh" },
+    ],
+  },
+  {
+    id: "mien-trung",
+    name: "Miền Trung",
+    scope: "domestic",
+    cities: [
+      { name: "Hội An", desc: "Phố cổ hoài niệm di sản UNESCO, ẩm thực đường phố, đèn lồng" },
+      { name: "Đà Nẵng", desc: "Thành phố đáng sống, bãi biển Mỹ Khê, bán đảo Sơn Trà" },
+      { name: "Huế", desc: "Cố đô trầm mặc, Đại Nội, lăng tẩm hoàng gia, nhã nhạc" },
+      { name: "Nha Trang", desc: "Vịnh biển trong xanh, lặn biển ngắm san hô, tắm khoáng" },
+      { name: "Quy Nhơn", desc: "Biển hoang sơ Kỳ Co, Eo Gió, tháp Chăm cổ kính" },
+      { name: "Phú Yên", desc: "Xứ hoa vàng trên cỏ xanh, Ghềnh Đá Đĩa độc đáo" },
+    ],
+  },
+  {
+    id: "tay-nguyen",
+    name: "Tây Nguyên",
+    scope: "domestic",
+    cities: [
+      { name: "Đà Lạt", desc: "Thành phố sương mù ngàn hoa, đồi thông, khí hậu mát lành" },
+      { name: "Buôn Ma Thuột", desc: "Thủ phủ cà phê, thác Dray Nur, văn hóa cồng chiêng" },
+      { name: "Pleiku", desc: "Biển Hồ T'nưng thơ mộng, núi lửa Chư Đăng Ya" },
+      { name: "Kon Tum", desc: "Nhà thờ gỗ trăm tuổi, cầu treo Kon Klor, nhà rông" },
+    ],
+  },
+  {
+    id: "mien-nam",
+    name: "Miền Nam",
+    scope: "domestic",
+    cities: [
+      { name: "TP. Hồ Chí Minh", desc: "Đô thị sôi động bậc nhất, nhịp sống đêm, văn hóa phong phú" },
+      { name: "Phú Quốc", desc: "Đảo ngọc thiên đường, bãi Sao, hoàng hôn biển, hải sản" },
+      { name: "Vũng Tàu", desc: "Thành phố biển gần gũi, ngọn hải đăng, ẩm thực hải sản" },
+      { name: "Cần Thơ", desc: "Tây Đô sông nước, chợ nổi Cái Răng, miệt vườn trái cây" },
+      { name: "Tây Ninh", desc: "Núi Bà Đen linh thiêng, Tòa thánh Cao Đài uy nghiêm" },
+    ],
+  },
+  {
+    id: "dong-nam-a",
+    name: "Đông Nam Á (Quốc tế)",
+    scope: "international",
+    cities: [
+      { name: "Bangkok", desc: "Thái Lan — Xứ sở chùa vàng, ẩm thực đường phố sôi động" },
+      { name: "Singapore", desc: "Đảo quốc sư tử xanh, hiện đại bậc nhất châu Á" },
+      { name: "Bali", desc: "Indonesia — Thiên đường nhiệt đới, đền cổ và văn hóa biển" },
+      { name: "Kuala Lumpur", desc: "Malaysia — Tháp đôi Petronas, giao thoa văn hóa đặc sắc" },
+    ],
+  },
+  {
+    id: "dong-bac-a",
+    name: "Đông Bắc Á (Quốc tế)",
+    scope: "international",
+    cities: [
+      { name: "Tokyo", desc: "Nhật Bản — Siêu đô thị hiện đại đan xen văn hóa truyền thống" },
+      { name: "Seoul", desc: "Hàn Quốc — Thủ đô K-Wave náo nhiệt, cung điện cổ kính" },
+      { name: "Đài Bắc", desc: "Đài Loan — Chợ đêm tấp nập, tháp Taipei 101, ẩm thực đường phố" },
+    ],
+  },
 ];
 
+// Expanded Travel Styles in Vietnamese
 const TRAVEL_STYLES = [
   { id: "food", label: "Ẩm thực & Đặc sản" },
   { id: "cultural", label: "Văn hóa & Di tích" },
@@ -41,25 +113,59 @@ const TRAVEL_STYLES = [
   { id: "nature", label: "Thiên nhiên & Cảnh quan" },
   { id: "relaxation", label: "Nghỉ dưỡng & Thư giãn" },
   { id: "adventure", label: "Trải nghiệm & Khám phá" },
+  { id: "shopping", label: "Mua sắm & Chợ địa phương" },
+  { id: "nightlife", label: "Giải trí về đêm & Quán bar" },
+  { id: "wellness", label: "Spa & Chăm sóc sức khỏe" },
+  { id: "outdoor", label: "Thể thao & Hoạt động ngoài trời" },
+  { id: "history", label: "Lịch sử & Bảo tàng" },
+  { id: "craft_villages", label: "Làng nghề & Văn hóa dân gian" },
 ];
 
 const GROUP_TYPES = [
   { id: "solo", label: "Đi một mình (Solo)" },
   { id: "couple", label: "Cặp đôi (Couple)" },
-  { id: "friends", label: "Nhóm bạn (Friends)" },
-  { id: "family", label: "Gia đình (Family)" },
+  { id: "friends", label: "Nhóm bạn bè" },
+  { id: "family", label: "Gia đình" },
+];
+
+// Preset step values for VND budget slider: 0 to 50,000,000 VND
+// 0 means "Không giới hạn"
+const BUDGET_STEPS = [
+  0,
+  1_000_000,
+  2_000_000,
+  3_000_000,
+  5_000_000,
+  7_000_000,
+  10_000_000,
+  15_000_000,
+  20_000_000,
+  30_000_000,
+  50_000_000,
 ];
 
 export default function PlanPage() {
   const router = useRouter();
   const [inputMode, setInputMode] = useState<"builder" | "freetext">("builder");
 
-  // Destination & Trip basic configs
+  // Cascading Destination selection: Region -> City
+  const [selectedRegionId, setSelectedRegionId] = useState("mien-trung");
   const [selectedCity, setSelectedCity] = useState("Hội An");
-  const [numDays, setNumDays] = useState(2);
-  const [budgetUsd, setBudgetUsd] = useState(60);
+
+  // Editable number of days (free input)
+  const [numDays, setNumDays] = useState<number>(2);
+
+  // Budget slider in VND (index in BUDGET_STEPS)
+  // 0 index = 0 VND = Không giới hạn
+  const [budgetStepIdx, setBudgetStepIdx] = useState<number>(4); // default 5,000,000 VND
+
+  // Group & Travel Styles
   const [selectedGroup, setSelectedGroup] = useState("couple");
-  const [selectedStyles, setSelectedStyles] = useState<string[]>(["food", "cultural", "photography"]);
+  const [selectedStyles, setSelectedStyles] = useState<string[]>([
+    "food",
+    "cultural",
+    "photography",
+  ]);
   const [customNotes, setCustomNotes] = useState("");
 
   // Free text mode prompt
@@ -70,16 +176,34 @@ export default function PlanPage() {
   const [result, setResult] = useState<any | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  // Get current region object & cities list
+  const currentRegion = useMemo(() => {
+    return REGIONS_DATA.find((r) => r.id === selectedRegionId) || REGIONS_DATA[0];
+  }, [selectedRegionId]);
+
+  const handleRegionChange = (newRegionId: string) => {
+    setSelectedRegionId(newRegionId);
+    const region = REGIONS_DATA.find((r) => r.id === newRegionId);
+    if (region && region.cities.length > 0) {
+      setSelectedCity(region.cities[0].name);
+    }
+  };
+
   const toggleStyle = (id: string) => {
     setSelectedStyles((prev) =>
       prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]
     );
   };
 
+  const currentBudgetVnd = BUDGET_STEPS[budgetStepIdx] || 0;
+
   const handlePlan = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setErrorMsg(null);
+
+    // Validate days
+    const validDays = Math.max(1, Math.min(Number(numDays) || 1, 30));
 
     let finalPrompt = "";
     if (inputMode === "builder") {
@@ -88,10 +212,14 @@ export default function PlanPage() {
         .filter(Boolean)
         .join(", ");
       const groupStr = GROUP_TYPES.find((g) => g.id === selectedGroup)?.label || selectedGroup;
+      const budgetText =
+        currentBudgetVnd > 0
+          ? `Ngân sách dự kiến: ${currentBudgetVnd.toLocaleString("vi-VN")} ₫.`
+          : "Ngân sách: Không giới hạn ngân sách (thoải mái).";
 
-      finalPrompt = `Tôi muốn lập kế hoạch du lịch tại ${selectedCity} trong thời gian ${numDays} ngày. Nhóm đối tượng: ${groupStr}. Ngân sách dự kiến khoảng ${budgetUsd} USD/ngày. Phong cách ưu tiên: ${stylesStr || "Tổng hợp"}.${
-        customNotes ? ` Lưu ý bổ sung: ${customNotes}.` : ""
-      }`;
+      finalPrompt = `Tôi muốn lập kế hoạch du lịch tại ${selectedCity} (${currentRegion.name}) trong thời gian ${validDays} ngày. Nhóm du khách: ${groupStr}. ${budgetText} Phong cách ưu tiên: ${
+        stylesStr || "Tổng hợp hài hòa"
+      }.${customNotes ? ` Yêu cầu bổ sung: ${customNotes}.` : ""}`;
     } else {
       finalPrompt = freeTextPrompt;
       if (!finalPrompt.trim()) {
@@ -116,7 +244,10 @@ export default function PlanPage() {
       {/* Top Navbar */}
       <header className="w-full bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between sticky top-0 z-50">
         <div className="flex items-center gap-3">
-          <Link href="/" className="text-slate-500 hover:text-slate-900 transition flex items-center gap-1 text-xs font-semibold">
+          <Link
+            href="/"
+            className="text-slate-500 hover:text-slate-900 transition flex items-center gap-1 text-xs font-semibold"
+          >
             <ChevronLeft className="w-4 h-4" />
             <span>Trang chủ</span>
           </Link>
@@ -137,13 +268,13 @@ export default function PlanPage() {
             <div className="text-center mb-8">
               <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-600 bg-slate-100 px-3 py-1 rounded-full mb-3 border border-slate-200">
                 <Compass className="w-3.5 h-3.5 text-blue-600" />
-                <span>AI Adaptive Route Assistant</span>
+                <span>Trợ lý lập lộ trình du lịch thông minh</span>
               </span>
               <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
                 Thiết lập chuyến đi của bạn
               </h1>
               <p className="mt-2 text-sm text-slate-600">
-                Chọn tiêu chí tùy chỉnh hoặc nhập mô tả tự do để hệ thống phân tích và đề xuất lộ trình phù hợp nhất.
+                Lựa chọn điểm đến, số ngày, ngân sách và sở thích cá nhân để AI tối ưu hóa lộ trình từng ngày.
               </p>
             </div>
 
@@ -154,44 +285,84 @@ export default function PlanPage() {
               </div>
             )}
 
-            <form onSubmit={handlePlan} className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-sm space-y-7">
-              {/* Destination Selection (Markdown Styled Cards Grid) */}
+            <form
+              onSubmit={handlePlan}
+              className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-sm space-y-7"
+            >
+              {/* Destination Section: 2 Cascading Dropdowns */}
               <div>
                 <label className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-700 mb-3">
                   <MapPin className="w-4 h-4 text-blue-600" />
-                  <span>Điểm đến (Tỉnh / Thành phố)</span>
+                  <span>Điểm đến du lịch</span>
                 </label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
-                  {VIETNAM_DESTINATIONS.map((dest) => {
-                    const isSelected = selectedCity === dest.name;
-                    return (
-                      <button
-                        type="button"
-                        key={dest.name}
-                        onClick={() => setSelectedCity(dest.name)}
-                        className={`p-3 rounded-xl border text-left transition flex flex-col justify-between ${
-                          isSelected
-                            ? "bg-slate-900 border-slate-900 text-white shadow-sm"
-                            : "bg-white border-slate-200 hover:border-slate-300 text-slate-800"
-                        }`}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  {/* Dropdown 1: Region */}
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1.5">
+                      Khu vực / Miền
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={selectedRegionId}
+                        onChange={(e) => handleRegionChange(e.target.value)}
+                        className="w-full px-3.5 py-2.5 bg-slate-50 hover:bg-slate-100/70 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-600 transition cursor-pointer appearance-none"
                       >
-                        <div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold">{dest.name}</span>
-                            {isSelected && <Check className="w-3.5 h-3.5 text-emerald-400" />}
-                          </div>
-                          <span
-                            className={`text-[10px] block mt-0.5 ${
-                              isSelected ? "text-slate-300" : "text-slate-400"
-                            }`}
-                          >
-                            {dest.region}
-                          </span>
-                        </div>
-                      </button>
-                    );
-                  })}
+                        <optgroup label="Việt Nam (Trong nước)">
+                          {REGIONS_DATA.filter((r) => r.scope === "domestic").map((r) => (
+                            <option key={r.id} value={r.id}>
+                              {r.name}
+                            </option>
+                          ))}
+                        </optgroup>
+                        <optgroup label="Quốc tế (Sắp mở rộng)">
+                          {REGIONS_DATA.filter((r) => r.scope === "international").map((r) => (
+                            <option key={r.id} value={r.id}>
+                              {r.name}
+                            </option>
+                          ))}
+                        </optgroup>
+                      </select>
+                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
+                        <Globe className="w-4 h-4" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Dropdown 2: City / Province */}
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1.5">
+                      Tỉnh / Thành phố
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={selectedCity}
+                        onChange={(e) => setSelectedCity(e.target.value)}
+                        className="w-full px-3.5 py-2.5 bg-slate-50 hover:bg-slate-100/70 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-600 transition cursor-pointer appearance-none"
+                      >
+                        {currentRegion.cities.map((c) => (
+                          <option key={c.name} value={c.name}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
+                        <MapPin className="w-4 h-4" />
+                      </div>
+                    </div>
+                  </div>
                 </div>
+
+                {/* Subtitle description for the selected city */}
+                {(() => {
+                  const cityObj = currentRegion.cities.find((c) => c.name === selectedCity);
+                  return cityObj ? (
+                    <p className="mt-2 text-xs text-slate-500 italic flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-blue-600 inline-block" />
+                      <span>{cityObj.desc}</span>
+                    </p>
+                  ) : null;
+                })()}
               </div>
 
               {/* Mode Switcher Tabs */}
@@ -231,52 +402,92 @@ export default function PlanPage() {
                 {/* Mode 1: Option Builder Mode */}
                 {inputMode === "builder" ? (
                   <div className="space-y-6">
-                    {/* Duration & Budget */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="flex items-center gap-1.5 text-xs font-bold text-slate-700 mb-2">
-                          <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                          <span>Số ngày chuyến đi</span>
-                        </label>
-                        <div className="flex items-center gap-2">
-                          {[1, 2, 3, 4, 5].map((d) => (
-                            <button
-                              key={d}
-                              type="button"
-                              onClick={() => setNumDays(d)}
-                              className={`flex-1 py-2 rounded-lg text-xs font-bold border transition ${
-                                numDays === d
-                                  ? "bg-blue-50 border-blue-600 text-blue-700"
-                                  : "bg-white border-slate-200 text-slate-700 hover:border-slate-300"
-                              }`}
-                            >
-                              {d} ngày
-                            </button>
-                          ))}
+                    {/* Duration (Free Editable Number Input) & Budget Slider (VND) */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                      {/* 1. Free Number of Days Input */}
+                      <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
+                        <div className="flex items-center justify-between mb-2">
+                          <label className="flex items-center gap-1.5 text-xs font-bold text-slate-700">
+                            <Calendar className="w-3.5 h-3.5 text-blue-600" />
+                            <span>Số ngày chuyến đi</span>
+                          </label>
+                          <span className="text-xs font-semibold text-slate-500">
+                            Tùy chỉnh linh hoạt
+                          </span>
                         </div>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            min={1}
+                            max={30}
+                            value={numDays}
+                            onChange={(e) => {
+                              const val = parseInt(e.target.value, 10);
+                              setNumDays(isNaN(val) ? 1 : Math.max(1, Math.min(val, 30)));
+                            }}
+                            className="w-24 px-3.5 py-2 rounded-lg border border-slate-300 bg-white text-base font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-600 text-center shadow-xs"
+                          />
+                          <span className="text-sm font-semibold text-slate-700">ngày</span>
+
+                          {/* Quick preset chips */}
+                          <div className="flex items-center gap-1 ml-auto">
+                            {[1, 2, 3, 5, 7].map((preset) => (
+                              <button
+                                key={preset}
+                                type="button"
+                                onClick={() => setNumDays(preset)}
+                                className={`px-2 py-1 rounded text-[11px] font-bold transition ${
+                                  numDays === preset
+                                    ? "bg-blue-600 text-white"
+                                    : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
+                                }`}
+                              >
+                                {preset}N
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <p className="text-[11px] text-slate-400 mt-2">
+                          Bạn có thể nhập số ngày bất kỳ từ 1 đến 30 ngày.
+                        </p>
                       </div>
 
-                      <div>
-                        <label className="flex items-center gap-1.5 text-xs font-bold text-slate-700 mb-2">
-                          <DollarSign className="w-3.5 h-3.5 text-slate-400" />
-                          <span>Ngân sách ước tính (~USD/ngày)</span>
-                        </label>
-                        <div className="flex items-center gap-2">
-                          {[30, 60, 100, 150].map((b) => (
-                            <button
-                              key={b}
-                              type="button"
-                              onClick={() => setBudgetUsd(b)}
-                              className={`flex-1 py-2 rounded-lg text-xs font-bold border transition ${
-                                budgetUsd === b
-                                  ? "bg-blue-50 border-blue-600 text-blue-700"
-                                  : "bg-white border-slate-200 text-slate-700 hover:border-slate-300"
-                              }`}
-                            >
-                              ${b}
-                            </button>
-                          ))}
+                      {/* 2. Budget Range Slider in VND */}
+                      <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
+                        <div className="flex items-center justify-between mb-2">
+                          <label className="flex items-center gap-1.5 text-xs font-bold text-slate-700">
+                            <DollarSign className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>Ngân sách dự kiến (VND)</span>
+                          </label>
+                          <span className="text-xs font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                            {formatVnd(currentBudgetVnd)}
+                          </span>
                         </div>
+
+                        {/* Range slider */}
+                        <div className="mt-3">
+                          <input
+                            type="range"
+                            min={0}
+                            max={BUDGET_STEPS.length - 1}
+                            step={1}
+                            value={budgetStepIdx}
+                            onChange={(e) => setBudgetStepIdx(parseInt(e.target.value, 10))}
+                            className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                          />
+                          <div className="flex justify-between text-[10px] text-slate-400 mt-1.5 font-medium">
+                            <span>Không giới hạn</span>
+                            <span>5 triệu</span>
+                            <span>20 triệu</span>
+                            <span>50 triệu</span>
+                          </div>
+                        </div>
+
+                        <p className="text-[11px] text-slate-400 mt-2">
+                          {currentBudgetVnd === 0
+                            ? "Mặc định không giới hạn ngân sách (thỏa sức trải nghiệm)."
+                            : `AI sẽ tối ưu các điểm đến và chi phí phù hợp hạn mức ${formatVnd(currentBudgetVnd)}.`}
+                        </p>
                       </div>
                     </div>
 
@@ -304,12 +515,17 @@ export default function PlanPage() {
                       </div>
                     </div>
 
-                    {/* Travel Style Checkboxes */}
+                    {/* Travel Style Checkboxes (Expanded Vietnamese Options) */}
                     <div>
-                      <label className="flex items-center gap-1.5 text-xs font-bold text-slate-700 mb-2">
-                        <Compass className="w-3.5 h-3.5 text-slate-400" />
-                        <span>Sở thích & Phong cách trải nghiệm (chọn nhiều)</span>
-                      </label>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="flex items-center gap-1.5 text-xs font-bold text-slate-700">
+                          <Compass className="w-3.5 h-3.5 text-slate-400" />
+                          <span>Sở thích & Phong cách trải nghiệm (chọn nhiều)</span>
+                        </label>
+                        <span className="text-[11px] text-slate-400 font-medium">
+                          Đã chọn {selectedStyles.length} mục
+                        </span>
+                      </div>
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                         {TRAVEL_STYLES.map((st) => {
                           const active = selectedStyles.includes(st.id);
@@ -326,7 +542,7 @@ export default function PlanPage() {
                             >
                               <span>{st.label}</span>
                               <div
-                                className={`w-4 h-4 rounded-md border flex items-center justify-center transition ${
+                                className={`w-4 h-4 rounded-md border flex items-center justify-center transition shrink-0 ml-2 ${
                                   active
                                     ? "bg-blue-600 border-blue-600 text-white"
                                     : "border-slate-300 bg-white"
@@ -349,7 +565,7 @@ export default function PlanPage() {
                         type="text"
                         value={customNotes}
                         onChange={(e) => setCustomNotes(e.target.value)}
-                        placeholder="Ví dụ: Thích quán cafe view hoàng hôn, hạn chế đi bộ trưa nắng..."
+                        placeholder="Ví dụ: Thích quán cafe view hoàng hôn, hạn chế đi bộ trưa nắng, ưu tiên đồ ăn chay..."
                         className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600"
                       />
                     </div>
@@ -365,7 +581,7 @@ export default function PlanPage() {
                       required={inputMode === "freetext"}
                       value={freeTextPrompt}
                       onChange={(e) => setFreeTextPrompt(e.target.value)}
-                      placeholder="Ví dụ: Tôi muốn đi Hội An 3 ngày, muốn trải nghiệm ẩm thực đường phố, chụp ảnh ở các quán cafe đẹp, dành 1 buổi chiều đi thuyền rừng dừa Bảy Mẫu, đi cùng bạn gái..."
+                      placeholder="Ví dụ: Tôi muốn đi Hội An 3 ngày với ngân sách tầm 5 triệu VND, muốn trải nghiệm ẩm thực đường phố, chụp ảnh ở các quán cafe đẹp, dành 1 buổi chiều đi rừng dừa Bảy Mẫu, đi cùng bạn gái..."
                       className="w-full p-4 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm text-slate-800 placeholder:text-slate-400"
                     />
                   </div>
@@ -381,7 +597,7 @@ export default function PlanPage() {
                 {loading ? (
                   <>
                     <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                    <span>AI đang phân tích sở thích & chấm điểm POI...</span>
+                    <span>AI đang phân tích sở thích & tối ưu lộ trình...</span>
                   </>
                 ) : (
                   <>
@@ -396,7 +612,7 @@ export default function PlanPage() {
         ) : (
           /* Results View */
           <div className="space-y-8">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
               <div>
                 <span className="text-xs font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
                   Phân tích thành công
@@ -413,7 +629,7 @@ export default function PlanPage() {
                 {result.trip_id && (
                   <Link
                     href={`/trips/${result.trip_id}`}
-                    className="text-xs font-bold px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-sm transition flex items-center gap-1.5"
+                    className="text-xs font-bold px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-sm transition flex items-center gap-1.5"
                   >
                     <Compass className="w-4 h-4" />
                     <span>Xem lộ trình & Timeline</span>
@@ -422,7 +638,7 @@ export default function PlanPage() {
                 )}
                 <button
                   onClick={() => setResult(null)}
-                  className="text-xs font-bold px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition"
+                  className="text-xs font-bold px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition"
                 >
                   Thiết lập chuyến đi khác
                 </button>
@@ -431,36 +647,42 @@ export default function PlanPage() {
 
             {/* Extracted Intent Badges */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="bg-white p-4 rounded-xl border border-slate-200">
+              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
                 <span className="text-[11px] font-semibold text-slate-400 uppercase flex items-center gap-1.5">
-                  <Calendar className="w-3.5 h-3.5" /> Thời gian
+                  <Calendar className="w-3.5 h-3.5 text-blue-600" /> Thời gian
                 </span>
                 <p className="text-base font-bold text-slate-900 mt-1">
                   {result.intent?.num_days || result.num_days} Ngày
                 </p>
               </div>
-              <div className="bg-white p-4 rounded-xl border border-slate-200">
+              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
                 <span className="text-[11px] font-semibold text-slate-400 uppercase flex items-center gap-1.5">
-                  <DollarSign className="w-3.5 h-3.5" /> Ngân sách
+                  <DollarSign className="w-3.5 h-3.5 text-emerald-600" /> Ngân sách
                 </span>
                 <p className="text-base font-bold text-slate-900 mt-1">
-                  ${result.intent?.budget_usd || 60}
+                  {formatVnd(currentBudgetVnd)}
                 </p>
               </div>
-              <div className="bg-white p-4 rounded-xl border border-slate-200">
+              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
                 <span className="text-[11px] font-semibold text-slate-400 uppercase flex items-center gap-1.5">
-                  <Users className="w-3.5 h-3.5" /> Nhóm đi
+                  <Users className="w-3.5 h-3.5 text-purple-600" /> Nhóm đi
                 </span>
                 <p className="text-base font-bold text-slate-900 mt-1 capitalize">
-                  {result.intent?.group_type || "Cặp đôi"}
+                  {GROUP_TYPES.find((g) => g.id === result.intent?.group_type)?.label ||
+                    result.intent?.group_type ||
+                    "Cặp đôi"}
                 </p>
               </div>
-              <div className="bg-white p-4 rounded-xl border border-slate-200">
+              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
                 <span className="text-[11px] font-semibold text-slate-400 uppercase flex items-center gap-1.5">
-                  <Compass className="w-3.5 h-3.5" /> Phong cách
+                  <Compass className="w-3.5 h-3.5 text-amber-600" /> Phong cách
                 </span>
                 <p className="text-xs font-bold text-slate-900 mt-1 truncate">
-                  {result.intent?.travel_style?.join(", ") || "Ẩm thực, ngắm cảnh"}
+                  {Array.isArray(result.intent?.travel_style)
+                    ? result.intent.travel_style
+                        .map((s: string) => TRAVEL_STYLES.find((t) => t.id === s)?.label || s)
+                        .join(", ")
+                    : "Ẩm thực, di tích, ngắm cảnh"}
                 </p>
               </div>
             </div>
@@ -480,15 +702,15 @@ export default function PlanPage() {
                 {result.recommended_pois?.map((poi: any, idx: number) => (
                   <div
                     key={poi.id || idx}
-                    className="p-5 bg-white rounded-2xl border border-slate-200 hover:border-slate-400 transition space-y-2.5 shadow-sm"
+                    className="p-5 bg-white rounded-2xl border border-slate-200 hover:border-slate-400 transition space-y-2.5 shadow-xs"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div>
                         <h4 className="font-bold text-slate-900 text-base">
                           {poi.name}
                         </h4>
-                        <span className="text-[11px] uppercase font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded">
-                          {poi.category?.replace("amenity=", "")}
+                        <span className="text-[11px] uppercase font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
+                          {getCategoryLabelVi(poi.category)}
                         </span>
                       </div>
                       <div className="flex items-center gap-1 bg-slate-900 text-white px-2.5 py-1 rounded-lg text-xs font-extrabold">
@@ -513,7 +735,7 @@ export default function PlanPage() {
                         <span>{poi.avg_duration_minutes || 45} phút</span>
                       </span>
                       <span className="font-semibold text-slate-900">
-                        {poi.avg_cost_usd === 0 ? "Miễn phí" : `$${poi.avg_cost_usd}`}
+                        {formatCostVi(poi.avg_cost_usd)}
                       </span>
                     </div>
                   </div>
