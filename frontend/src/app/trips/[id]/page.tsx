@@ -25,6 +25,7 @@ import MapView, { POI } from "@/components/map/MapView";
 import DayTimeline, { ItineraryDay } from "@/components/timeline/DayTimeline";
 import { fetchTripDetail, fetchWeather, replanTrip } from "@/lib/api";
 import { formatCostVi, formatVnd } from "@/lib/formatters";
+import { supabase } from "@/lib/supabase";
 
 export default function TripDetailPage() {
   const params = useParams();
@@ -68,6 +69,30 @@ export default function TripDetailPage() {
       .finally(() => {
         setLoading(false);
       });
+
+    // Supabase Realtime listener for background / multi-device replan updates
+    const channel = supabase
+      .channel(`trip-${tripId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "trips",
+          filter: `id=eq.${tripId}`,
+        },
+        () => {
+          // Re-fetch trip detail when updated via Realtime
+          fetchTripDetail(tripId).then((data) => {
+            if (data) setTrip(data);
+          }).catch(() => {});
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [tripId]);
 
   // Handle Real-time Re-planning trigger
