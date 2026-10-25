@@ -7,6 +7,7 @@ import { planTripWithAI } from "@/lib/api";
 import { getCategoryLabelVi, formatCostVi, formatVnd } from "@/lib/formatters";
 import CustomSelect, { CustomSelectGroup, CustomSelectOption } from "@/components/ui/CustomSelect";
 import DualThumbRangeSlider from "@/components/ui/DualThumbRangeSlider";
+import { useToast } from "@/components/ui/Toast";
 import {
   Sparkles,
   ArrowRight,
@@ -174,6 +175,7 @@ const GROUP_TYPES = [
 
 export default function PlanPage() {
   const router = useRouter();
+  const { success, error: toastError } = useToast();
   const [inputMode, setInputMode] = useState<"builder" | "freetext">("builder");
 
   // Cascading Destination selection: Region -> City
@@ -298,8 +300,11 @@ export default function PlanPage() {
     try {
       const data = await planTripWithAI(finalPrompt, selectedCity);
       setResult(data);
+      success("Tạo lịch trình thành công", `Đã tối ưu lộ trình ${validDays} ngày tại ${selectedCity}`);
     } catch (err: any) {
-      setErrorMsg(err.message || "Đã xảy ra lỗi khi tạo lịch trình với AI.");
+      const msg = err.message || "Đã xảy ra lỗi khi tạo lịch trình với AI.";
+      setErrorMsg(msg);
+      toastError("Lỗi tạo lịch trình", msg);
     } finally {
       setLoading(false);
     }

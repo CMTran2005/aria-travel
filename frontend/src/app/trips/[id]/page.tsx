@@ -26,10 +26,12 @@ import DayTimeline, { ItineraryDay } from "@/components/timeline/DayTimeline";
 import { fetchTripDetail, fetchWeather, replanTrip } from "@/lib/api";
 import { formatCostVi, formatVnd } from "@/lib/formatters";
 import { supabase } from "@/lib/supabase";
+import { useToast } from "@/components/ui/Toast";
 
 export default function TripDetailPage() {
   const params = useParams();
   const tripId = params.id as string;
+  const { success, error: toastError, info } = useToast();
 
   const [trip, setTrip] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -123,9 +125,10 @@ export default function TripDetailPage() {
         if (currentUpdatedDay && currentUpdatedDay.items.length > 0) {
           setSelectedPOI(currentUpdatedDay.items[0].poi);
         }
+        success("Tái lập thành công", res.explanation || "Lộ trình đã được tối ưu lại theo điều kiện mới.");
       }
     } catch (err: any) {
-      alert(err.message || "Không thể tái lập lịch trình.");
+      toastError("Lỗi tái lập lịch trình", err.message || "Không thể tính toán lại lộ trình.");
     } finally {
       setReplanning(false);
     }
@@ -203,10 +206,10 @@ export default function TripDetailPage() {
                 navigator.share({ title: trip.title, url: window.location.href });
               } else {
                 navigator.clipboard.writeText(window.location.href);
-                alert("Đã sao chép liên kết chuyến đi!");
+                success("Đã sao chép liên kết", "Bạn có thể gửi liên kết này cho bạn bè hoặc người đồng hành.");
               }
             }}
-            className="px-3 py-1.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center gap-1.5 transition"
+            className="px-3 py-1.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center gap-1.5 transition active:scale-95"
           >
             <Share2 className="w-3.5 h-3.5" />
             <span>Chia sẻ</span>
