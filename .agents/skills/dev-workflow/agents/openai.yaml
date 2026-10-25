@@ -1,0 +1,4 @@
+interface:
+  display_name: "Dev Workflow"
+  short_description: "Brainstorm, explore, plan, code, verify, wiki và nhớ idea"
+  default_prompt: "Use $dev-workflow to run the project workflow (brainstorm → explore → plan → code → verify → sync wiki) and reply in Vietnamese."
