@@ -27,10 +27,13 @@ import { fetchTripDetail, fetchWeather, replanTrip } from "@/lib/api";
 import { formatCostVi, formatVnd } from "@/lib/formatters";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/Toast";
+import HeaderSettings from "@/components/ui/HeaderSettings";
+import { useAppSettings } from "@/context/AppSettingsContext";
 
 export default function TripDetailPage() {
   const params = useParams();
   const tripId = params.id as string;
+  const { theme, t, formatMoney } = useAppSettings();
   const { success, error: toastError, info } = useToast();
 
   const [trip, setTrip] = useState<any>(null);
@@ -168,31 +171,31 @@ export default function TripDetailPage() {
   const currentDay = days[selectedDayIdx] || null;
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col justify-between">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col justify-between transition-colors duration-200">
       {/* Top Navbar */}
-      <header className="w-full bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between sticky top-0 z-50">
+      <header className="w-full bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-6 py-4 flex items-center justify-between sticky top-0 z-50">
         <div className="flex items-center gap-3">
           <Link
             href="/plan"
-            className="text-slate-500 hover:text-slate-900 transition flex items-center gap-1 text-xs font-semibold"
+            className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition flex items-center gap-1 text-xs font-semibold"
           >
             <ChevronLeft className="w-4 h-4" />
-            <span>Kế hoạch mới</span>
+            <span>{t("Kế hoạch mới", "New Plan")}</span>
           </Link>
-          <span className="text-slate-300">|</span>
-          <span className="text-xl font-black text-blue-600 tracking-tight">ARIA</span>
-          <span className="text-xs bg-slate-100 text-slate-800 font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1.5 border border-slate-200">
-            <Compass className="w-3.5 h-3.5 text-blue-600" />
-            <span>Lộ trình thông minh thích ứng</span>
+          <span className="text-slate-300 dark:text-slate-700">|</span>
+          <span className="text-xl font-black text-blue-600 dark:text-blue-400 tracking-tight">ARIA</span>
+          <span className="text-xs bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1.5 border border-slate-200 dark:border-slate-700">
+            <Compass className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+            <span>{t("Lộ trình thông minh thích ứng", "Adaptive Route")}</span>
           </span>
         </div>
 
         <div className="flex items-center gap-2">
           {/* Weather Widget Header */}
           {weather && (
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700">
+            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300">
               {weather.is_bad_weather ? (
-                <CloudRain className="w-4 h-4 text-blue-600 animate-pulse" />
+                <CloudRain className="w-4 h-4 text-blue-600 dark:text-blue-400 animate-pulse" />
               ) : (
                 <Sun className="w-4 h-4 text-amber-500" />
               )}
@@ -200,70 +203,79 @@ export default function TripDetailPage() {
             </div>
           )}
 
+          <HeaderSettings />
+
           <button
             onClick={() => {
               if (navigator.share) {
                 navigator.share({ title: trip.title, url: window.location.href });
               } else {
                 navigator.clipboard.writeText(window.location.href);
-                success("Đã sao chép liên kết", "Bạn có thể gửi liên kết này cho bạn bè hoặc người đồng hành.");
+                success(
+                  t("Đã sao chép liên kết", "Link copied"),
+                  t("Bạn có thể gửi liên kết này cho bạn bè hoặc người đồng hành.", "You can share this link with companions.")
+                );
               }
             }}
-            className="px-3 py-1.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center gap-1.5 transition active:scale-95"
+            className="px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg flex items-center gap-1.5 transition active:scale-95"
           >
             <Share2 className="w-3.5 h-3.5" />
-            <span>Chia sẻ</span>
+            <span>{t("Chia sẻ", "Share")}</span>
           </button>
         </div>
       </header>
 
+
       {/* Main Content Split Screen */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 flex flex-col gap-6">
         {/* Trip Header Banner */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1.5">
-              <span className="text-[11px] uppercase tracking-wider font-extrabold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded border border-blue-200">
-                {trip.city || "Hội An"}
+              <span className="text-[11px] uppercase tracking-wider font-extrabold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 px-2.5 py-0.5 rounded border border-blue-200 dark:border-blue-800">
+                {trip.city || "Việt Nam"}
               </span>
               <span className="text-xs text-slate-400 font-medium">•</span>
-              <span className="text-xs text-slate-500 font-medium">
-                {days.length} Ngày khám phá
+              <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                {days.length} {t("Ngày khám phá", "Days Exploration")}
               </span>
               <span className="text-xs text-slate-400 font-medium">•</span>
-              <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                OR-Tools TSPTW Tối ưu
+              <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800">
+                OR-Tools TSPTW {t("Tối ưu", "Optimized")}
               </span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
               {trip.title || `Lịch trình du lịch ${trip.city}`}
             </h1>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 text-xs font-semibold text-slate-700">
-            <div className="flex items-center gap-1.5 bg-slate-50 px-3 py-2 rounded-xl border border-slate-200">
-              <DollarSign className="w-4 h-4 text-emerald-600" />
-              <span>Ngân sách: {formatCostVi(trip.budget_usd)}</span>
+          <div className="flex flex-wrap items-center gap-3 text-xs font-semibold text-slate-700 dark:text-slate-300">
+            <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700">
+              <DollarSign className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              <span>{t("Ngân sách", "Budget")}: {formatMoney((trip.budget_usd || 0) * 25000)}</span>
             </div>
-            <div className="flex items-center gap-1.5 bg-slate-50 px-3 py-2 rounded-xl border border-slate-200">
-              <Users className="w-4 h-4 text-blue-600" />
+            <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700">
+              <Users className="w-4 h-4 text-blue-600 dark:text-blue-400" />
               <span className="capitalize">{trip.preferences?.group_type || "Cặp đôi"}</span>
             </div>
           </div>
         </div>
 
         {/* Real-time Re-planning Simulation Bar */}
-        <div className="bg-gradient-to-r from-blue-50 via-indigo-50 to-slate-50 p-4 rounded-2xl border border-blue-200/70 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="bg-gradient-to-r from-blue-50 via-indigo-50 to-slate-50 dark:from-slate-900 dark:via-blue-950/40 dark:to-slate-900 p-4 rounded-2xl border border-blue-200/70 dark:border-blue-900/60 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0">
               <Sparkles className="w-4 h-4" />
             </div>
             <div>
-              <h4 className="text-xs font-extrabold text-slate-900">
-                Tái lập lịch trình thích ứng thời gian thực (Adaptive Re-planning)
+              <h4 className="text-xs font-extrabold text-slate-900 dark:text-white">
+                {t("Tái lập lịch trình thích ứng thời gian thực (Adaptive Re-planning)", "Real-time Adaptive Re-planning Engine")}
               </h4>
-              <p className="text-[11px] text-slate-500">
-                Mô phỏng sự cố ngoại cảnh để kích hoạt thuật toán tự điều chỉnh lộ trình cho Ngày {(selectedDayIdx || 0) + 1}:
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                {t(
+                  `Mô phỏng sự cố ngoại cảnh để kích hoạt thuật toán tự điều chỉnh lộ trình cho Ngày ${(selectedDayIdx || 0) + 1}:`,
+                  `Simulate external triggers to adaptively re-optimize itinerary for Day ${(selectedDayIdx || 0) + 1}:`
+                )}
               </p>
             </div>
           </div>
@@ -273,21 +285,22 @@ export default function TripDetailPage() {
             <button
               onClick={() => handleTriggerReplan("weather_rain")}
               disabled={replanning}
-              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-white hover:bg-slate-50 text-blue-800 border border-blue-200 shadow-2xs flex items-center gap-1.5 transition disabled:opacity-50"
+              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-800 shadow-2xs flex items-center gap-1.5 transition disabled:opacity-50"
             >
-              <CloudRain className="w-3.5 h-3.5 text-blue-600" />
-              <span>Thời tiết xấu (Mưa to)</span>
+              <CloudRain className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+              <span>{t("Thời tiết xấu (Mưa to)", "Severe Weather (Rain)")}</span>
             </button>
 
             {/* Trigger 2: Closure */}
             <button
               onClick={() => handleTriggerReplan("poi_closed")}
               disabled={replanning}
-              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-white hover:bg-slate-50 text-amber-800 border border-amber-200 shadow-2xs flex items-center gap-1.5 transition disabled:opacity-50"
+              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800 shadow-2xs flex items-center gap-1.5 transition disabled:opacity-50"
             >
-              <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
-              <span>Điểm đóng cửa</span>
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+              <span>{t("Điểm đóng cửa", "Venue Closed")}</span>
             </button>
+
 
             {/* Trigger 3: Traffic Delay */}
             <button

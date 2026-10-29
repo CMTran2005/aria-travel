@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { ToastProvider } from "@/components/ui/Toast";
+import { AppSettingsProvider } from "@/context/AppSettingsContext";
 
 export const metadata: Metadata = {
   title: "ARIA — Adaptive Route Intelligence Assistant",
@@ -13,10 +14,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="vi">
-      <body className="antialiased bg-slate-50 text-slate-900">
-        <ToastProvider>{children}</ToastProvider>
+    <html lang="vi" suppressHydrationWarning>
+      <body className="antialiased bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 transition-colors duration-200">
+        <AppSettingsProvider>
+          <ToastProvider>{children}</ToastProvider>
+        </AppSettingsProvider>
       </body>
     </html>
   );
 }
+

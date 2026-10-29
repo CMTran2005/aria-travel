@@ -8,6 +8,8 @@ import { getCategoryLabelVi, formatCostVi, formatVnd } from "@/lib/formatters";
 import CustomSelect, { CustomSelectGroup, CustomSelectOption } from "@/components/ui/CustomSelect";
 import DualThumbRangeSlider from "@/components/ui/DualThumbRangeSlider";
 import { useToast } from "@/components/ui/Toast";
+import HeaderSettings from "@/components/ui/HeaderSettings";
+import { useAppSettings } from "@/context/AppSettingsContext";
 import {
   Sparkles,
   ArrowRight,
@@ -175,6 +177,7 @@ const GROUP_TYPES = [
 
 export default function PlanPage() {
   const router = useRouter();
+  const { theme, t, formatMoney } = useAppSettings();
   const { success, error: toastError } = useToast();
   const [inputMode, setInputMode] = useState<"builder" | "freetext">("builder");
 
@@ -311,25 +314,30 @@ export default function PlanPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col justify-between">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col justify-between transition-colors duration-200">
       {/* Top Navbar */}
-      <header className="w-full bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between sticky top-0 z-50">
+      <header className="w-full bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-6 py-4 flex items-center justify-between sticky top-0 z-50">
         <div className="flex items-center gap-3">
           <Link
             href="/"
-            className="text-slate-500 hover:text-slate-900 transition flex items-center gap-1 text-xs font-semibold"
+            className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition flex items-center gap-1 text-xs font-semibold"
           >
             <ChevronLeft className="w-4 h-4" />
-            <span>Trang chủ</span>
+            <span>{t("Trang chủ", "Home")}</span>
           </Link>
-          <span className="text-slate-300">|</span>
-          <span className="text-xl font-black text-blue-600 tracking-tight">ARIA</span>
-          <span className="text-xs bg-slate-100 text-slate-800 font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1.5 border border-slate-200">
-            <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-            <span>Lập kế hoạch lộ trình thông minh</span>
+          <span className="text-slate-300 dark:text-slate-700">|</span>
+          <span className="text-xl font-black text-blue-600 dark:text-blue-400 tracking-tight">ARIA</span>
+          <span className="text-xs bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1.5 border border-slate-200 dark:border-slate-700">
+            <Sparkles className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+            <span>{t("Lập kế hoạch lộ trình thông minh", "Smart Route Planner")}</span>
           </span>
         </div>
+
+        <div className="flex items-center gap-2">
+          <HeaderSettings />
+        </div>
       </header>
+
 
       {/* Main Container - Extended Full Width (max-w-7xl) for horizontal balance */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
