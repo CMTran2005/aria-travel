@@ -252,7 +252,7 @@ export default function TripDetailPage() {
           </div>
         </div>
 
-        {/* Sprint 6: Real-time Re-planning Simulation Bar */}
+        {/* Real-time Re-planning Simulation Bar */}
         <div className="bg-gradient-to-r from-blue-50 via-indigo-50 to-slate-50 p-4 rounded-2xl border border-blue-200/70 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0">

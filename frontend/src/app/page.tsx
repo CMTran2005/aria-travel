@@ -83,8 +83,8 @@ export default function HomePage() {
       <header className="w-full bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between sticky top-0 z-50">
         <div className="flex items-center gap-3">
           <span className="text-2xl font-black text-blue-600 tracking-tight">ARIA</span>
-          <span className="text-xs bg-emerald-100 text-emerald-800 font-bold px-2.5 py-0.5 rounded-full">
-            Sprint 2 • Map & POIs
+          <span className="text-xs bg-blue-50 text-blue-700 font-bold px-2.5 py-0.5 rounded-full border border-blue-200">
+            Khám phá & Bản đồ
           </span>
         </div>
 
