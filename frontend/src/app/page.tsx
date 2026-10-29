@@ -155,7 +155,7 @@ export default function HomePage() {
 
           <Link
             href="/plan"
-            className="flex items-center gap-1.5 text-xs font-bold px-3.5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl shadow-sm transition active:scale-95"
+            className="flex items-center gap-1.5 text-xs font-bold w-36 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl shadow-sm transition active:scale-95 justify-center text-center shrink-0"
           >
             <span>{t("Lập kế hoạch AI", "AI Travel Planner")}</span>
           </Link>
@@ -167,7 +167,7 @@ export default function HomePage() {
               </span>
               <button
                 onClick={handleLogout}
-                className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                className="text-xs font-semibold w-24 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition text-center shrink-0"
               >
                 {t("Đăng xuất", "Log out")}
               </button>
@@ -175,7 +175,7 @@ export default function HomePage() {
           ) : (
             <Link
               href="/login"
-              className="text-xs font-semibold px-3.5 py-2 bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-white dark:text-slate-900 text-white rounded-xl transition shadow-sm"
+              className="text-xs font-semibold w-24 py-2 bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-white dark:text-slate-900 text-white rounded-xl transition shadow-sm justify-center text-center shrink-0"
             >
               {t("Đăng nhập", "Log in")}
             </Link>
@@ -186,14 +186,18 @@ export default function HomePage() {
       {/* Main Exploration Section: Split View POI List & Leaflet Map */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
         <div className="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4">
-          <div className="max-w-xl">
+          <div>
             <div className="flex items-center gap-2 mb-2">
               <span className="text-xs uppercase font-extrabold tracking-wider text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-2 py-0.5 rounded border border-blue-200 dark:border-blue-800">
                 {t("Khám phá thực địa", "Field Exploration")}
               </span>
+              <span className="text-xs text-slate-400">•</span>
+              <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                {selectedCity}
+              </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-              {t("Bản đồ điểm tham quan tại", "Interactive Map for")} {selectedCity}
+              {t("Bản đồ điểm tham quan thực tế", "Interactive POI Map")}
             </h1>
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
               {t(
@@ -203,41 +207,29 @@ export default function HomePage() {
             </p>
           </div>
 
-          {/* City Dropdown Selector matching Plan AI */}
-          <div className="w-full sm:w-64">
-            <CustomSelect
-              label={t("Chọn thành phố", "Select destination city")}
-              icon={<MapPin className="w-4 h-4 text-blue-600 dark:text-blue-400" />}
-              value={selectedCity}
-              onChange={handleCityChange}
-              groups={CITY_SELECT_GROUPS}
-            />
+          {/* Filter Pills */}
+          <div className="flex flex-wrap gap-1.5">
+            {[
+              { id: "all", labelVi: "Tất cả", labelEn: "All" },
+              { id: "tourism", labelVi: "Di tích & Danh thắng", labelEn: "Attractions" },
+              { id: "amenity=restaurant", labelVi: "Ẩm thực", labelEn: "Dining" },
+              { id: "amenity=cafe", labelVi: "Quán Cafe", labelEn: "Cafes" },
+              { id: "leisure", labelVi: "Giải trí", labelEn: "Leisure" },
+            ].map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() => handleCategoryChange(cat.id)}
+                className={`text-xs font-semibold px-3 py-1.5 rounded-xl transition ${
+                  categoryFilter === cat.id
+                    ? "bg-slate-900 dark:bg-blue-600 text-white shadow-xs"
+                    : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700"
+                }`}
+              >
+                {t(cat.labelVi, cat.labelEn)}
+              </button>
+            ))}
           </div>
         </div>
-
-        {/* Filter Pills */}
-        <div className="flex flex-wrap gap-2 mb-6">
-          {[
-            { id: "all", labelVi: "Tất cả", labelEn: "All" },
-            { id: "tourism", labelVi: "Di tích & Danh thắng", labelEn: "Attractions" },
-            { id: "amenity=restaurant", labelVi: "Ẩm thực", labelEn: "Dining" },
-            { id: "amenity=cafe", labelVi: "Quán Cafe", labelEn: "Cafes" },
-            { id: "leisure", labelVi: "Giải trí & Nghỉ dưỡng", labelEn: "Leisure" },
-          ].map((cat) => (
-            <button
-              key={cat.id}
-              onClick={() => handleCategoryChange(cat.id)}
-              className={`text-xs font-semibold px-3.5 py-1.5 rounded-full transition ${
-                categoryFilter === cat.id
-                  ? "bg-slate-900 dark:bg-blue-600 text-white shadow-xs"
-                  : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700"
-              }`}
-            >
-              {t(cat.labelVi, cat.labelEn)}
-            </button>
-          ))}
-        </div>
-
 
         {/* Split View Container */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
@@ -288,28 +280,57 @@ export default function HomePage() {
             )}
           </div>
 
-          {/* Right Column: Leaflet Map */}
-          <div className="lg:col-span-7 h-[600px] rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800">
-            <MapView
-              pois={pois}
-              selectedPOI={selectedPOI}
-              onSelectPOI={(poi: any) => setSelectedPOI(poi)}
-              center={
-                selectedPOI
-                  ? [selectedPOI.latitude, selectedPOI.longitude]
-                  : [
-                      CITY_COORDINATES[selectedCity]?.lat || 15.8775,
-                      CITY_COORDINATES[selectedCity]?.lon || 108.3285,
-                    ]
-              }
-              zoom={
-                selectedPOI
-                  ? 16
-                  : CITY_COORDINATES[selectedCity]?.zoom || 14
-              }
-            />
-          </div>
+          {/* Right Column: Leaflet Map with integrated City Selector Toolbar */}
+          <div className="lg:col-span-7 flex flex-col gap-2.5">
+            {/* Map Header Toolbar (Plan A) */}
+            <div className="flex items-center justify-between gap-3 bg-white dark:bg-slate-900 p-2.5 px-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0">
+                  <Compass className="w-3.5 h-3.5" />
+                </div>
+                <div className="truncate">
+                  <div className="text-[10px] uppercase font-bold text-slate-400 leading-tight">
+                    {t("Khu vực bản đồ", "Map Location")}
+                  </div>
+                  <div className="text-xs font-extrabold text-slate-900 dark:text-white truncate">
+                    {selectedCity} • {pois.length} {t("địa điểm", "places")}
+                  </div>
+                </div>
+              </div>
 
+              {/* City selector dropdown integrated right inside toolbar */}
+              <div className="w-56 shrink-0">
+                <CustomSelect
+                  icon={<MapPin className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />}
+                  value={selectedCity}
+                  onChange={handleCityChange}
+                  groups={CITY_SELECT_GROUPS}
+                  placeholder={t("Chọn thành phố...", "Choose city...")}
+                />
+              </div>
+            </div>
+
+            <div className="h-[550px] rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-xs">
+              <MapView
+                pois={pois}
+                selectedPOI={selectedPOI}
+                onSelectPOI={(poi) => setSelectedPOI(poi)}
+                center={
+                  selectedPOI
+                    ? [selectedPOI.latitude, selectedPOI.longitude]
+                    : [
+                        CITY_COORDINATES[selectedCity]?.lat || 15.8775,
+                        CITY_COORDINATES[selectedCity]?.lon || 108.3285,
+                      ]
+                }
+                zoom={
+                  selectedPOI
+                    ? 16
+                    : CITY_COORDINATES[selectedCity]?.zoom || 14
+                }
+              />
+            </div>
+          </div>
         </div>
       </main>
 
