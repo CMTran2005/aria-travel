@@ -6,8 +6,14 @@ import { supabase } from "@/lib/supabase";
 import { fetchPOIs, updatePOILocation } from "@/lib/api";
 import { User } from "@supabase/supabase-js";
 import dynamic from "next/dynamic";
-import { Star, Clock } from "lucide-react";
+import { Star, Clock, MapPin } from "lucide-react";
 import { POI } from "@/components/map/MapView";
+
+const CITIES = [
+  { name: "Hội An", lat: 15.8775, lon: 108.3285, zoom: 15 },
+  { name: "Đà Lạt", lat: 11.9404, lon: 108.4583, zoom: 14 },
+  { name: "Đà Nẵng", lat: 16.0544, lon: 108.2022, zoom: 13 },
+];
 
 const MapView = dynamic(() => import("@/components/map/MapView"), {
   ssr: false,
@@ -20,6 +26,7 @@ const MapView = dynamic(() => import("@/components/map/MapView"), {
 
 export default function HomePage() {
   const [user, setUser] = useState<User | null>(null);
+  const [selectedCity, setSelectedCity] = useState<string>("Hội An");
   const [pois, setPois] = useState<POI[]>([]);
   const [selectedPOI, setSelectedPOI] = useState<POI | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
@@ -34,18 +41,21 @@ export default function HomePage() {
       setUser(session?.user ?? null);
     });
 
-    loadPOIs();
+    loadPOIs(selectedCity, categoryFilter);
 
     return () => subscription.unsubscribe();
   }, []);
 
-  const loadPOIs = async (cat?: string) => {
+  const loadPOIs = async (city: string, cat?: string) => {
     try {
       setLoading(true);
-      const res = await fetchPOIs("Hội An", cat === "all" ? undefined : cat);
-      setPois(res.data || []);
-      if (res.data && res.data.length > 0) {
-        setSelectedPOI(res.data[0]);
+      const res = await fetchPOIs(city, cat === "all" ? undefined : cat);
+      const data = res.data || [];
+      setPois(data);
+      if (data.length > 0) {
+        setSelectedPOI(data[0]);
+      } else {
+        setSelectedPOI(null);
       }
     } catch (e) {
       console.error(e);
@@ -54,9 +64,15 @@ export default function HomePage() {
     }
   };
 
+  const handleCityChange = (cityName: string) => {
+    setSelectedCity(cityName);
+    setSelectedPOI(null);
+    loadPOIs(cityName, categoryFilter);
+  };
+
   const handleCategoryChange = (cat: string) => {
     setCategoryFilter(cat);
-    loadPOIs(cat);
+    loadPOIs(selectedCity, cat);
   };
 
   const handleUpdateCoordinates = async (poiId: number, lat: number, lng: number) => {
@@ -123,14 +139,33 @@ export default function HomePage() {
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
         <div className="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
-            <div className="text-xs uppercase font-bold tracking-wider text-blue-600 mb-1">
-              Khám phá thực địa • Hội An
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="text-xs uppercase font-extrabold tracking-wider text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                Khám phá thực địa
+              </span>
+              <span className="text-xs text-slate-400">•</span>
+              <div className="flex items-center gap-1">
+                <MapPin className="w-3.5 h-3.5 text-slate-500" />
+                {CITIES.map((c) => (
+                  <button
+                    key={c.name}
+                    onClick={() => handleCityChange(c.name)}
+                    className={`text-xs font-bold px-2.5 py-1 rounded-lg transition ${
+                      selectedCity === c.name
+                        ? "bg-slate-900 text-white shadow-xs"
+                        : "text-slate-600 hover:bg-slate-100"
+                    }`}
+                  >
+                    {c.name}
+                  </button>
+                ))}
+              </div>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-              Bản đồ tương tác các điểm tham quan (POIs)
+              Bản đồ điểm tham quan tại {selectedCity}
             </h1>
             <p className="text-sm text-slate-500 mt-1">
-              Dữ liệu địa lý thực tế được lấy từ OpenStreetMap và lưu trữ trong Supabase PostGIS.
+              Dữ liệu địa lý thực tế được tối ưu hóa cho du lịch và lưu trữ trong Supabase PostGIS.
             </p>
           </div>
 
@@ -189,7 +224,7 @@ export default function HomePage() {
                     </div>
                   </div>
                   <p className="text-xs text-slate-500 mt-1 line-clamp-1">
-                    {poi.address || "Hội An, Quảng Nam"}
+                    {poi.address || `${poi.city || selectedCity}, Việt Nam`}
                   </p>
                   <div className="mt-3 flex items-center justify-between text-xs text-slate-600">
                     <span className="flex items-center gap-1 text-slate-500">
@@ -214,11 +249,19 @@ export default function HomePage() {
               center={
                 selectedPOI
                   ? [selectedPOI.latitude, selectedPOI.longitude]
-                  : [15.8775, 108.3285]
+                  : [
+                      CITIES.find((c) => c.name === selectedCity)?.lat || 15.8775,
+                      CITIES.find((c) => c.name === selectedCity)?.lon || 108.3285,
+                    ]
               }
-              zoom={selectedPOI ? 16 : 15}
+              zoom={
+                selectedPOI
+                  ? 16
+                  : CITIES.find((c) => c.name === selectedCity)?.zoom || 14
+              }
             />
           </div>
+
         </div>
       </main>
 
