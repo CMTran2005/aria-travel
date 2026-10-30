@@ -239,10 +239,12 @@ export default function HomePage() {
 
       {/* Main Exploration Section: Split View POI List & Leaflet Map */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
-        <div className="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-6">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-xs uppercase font-extrabold tracking-wider text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-2 py-0.5 rounded border border-blue-200 dark:border-blue-800">
+        {/* Top Header Row aligned with 12-column grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-end mb-6">
+          {/* Left: Compact Title & Description (Col 5 - exact match with POI Feed) */}
+          <div className="lg:col-span-5 min-w-0 pr-2">
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="text-[11px] uppercase font-extrabold tracking-wider text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-2 py-0.5 rounded border border-blue-200 dark:border-blue-800">
                 {t("Khám phá thực địa", "Field Exploration")}
               </span>
               <span className="text-xs text-slate-400">•</span>
@@ -250,19 +252,19 @@ export default function HomePage() {
                 {selectedCity}
               </span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-              {t("Bản đồ điểm tham quan thực tế", "Interactive POI Map")}
+            <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+              {t("Điểm tham quan thực tế", "Interactive Places")}
             </h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-xl">
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-1">
               {t(
-                "Dữ liệu địa lý thực tế được tối ưu hóa cho du lịch và lưu trữ trong Supabase PostGIS.",
-                "Real geographic points optimized for tourism and stored in Supabase PostGIS."
+                "Dữ liệu du lịch chuẩn xác tối ưu hóa bởi Supabase PostGIS.",
+                "Tourism data accurately optimized by PostGIS."
               )}
             </p>
           </div>
 
-          {/* Search Bar & Filter Controls (Fixed Width Container) */}
-          <div className="flex flex-col gap-2.5 w-full md:w-[380px] lg:w-[420px] shrink-0">
+          {/* Right: Search Bar & Filter Controls (Col 7 - exact match with Map toolbar) */}
+          <div className="lg:col-span-7 flex flex-col gap-2 min-w-0">
             {/* Search Input with Clear Button */}
             <div className="relative w-full">
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
@@ -284,7 +286,7 @@ export default function HomePage() {
               )}
             </div>
 
-            {/* Category Filter Pills (Fixed Width with Wheel Scroll) */}
+            {/* Category Filter Pills (Wheel Scroll) */}
             <div
               onWheel={(e) => {
                 if (e.deltaY !== 0) {
@@ -316,7 +318,7 @@ export default function HomePage() {
 
             {/* Dynamic Tag Pills Row with Mouse Wheel Horizontal Scrolling */}
             {availableTags.length > 0 && (
-              <div className="relative flex items-center">
+              <div className="relative flex items-center bg-slate-100/60 dark:bg-slate-800/40 px-2 py-1 rounded-xl border border-slate-200/60 dark:border-slate-800/60">
                 {/* Left arrow indicator for scrolling */}
                 <button
                   type="button"
@@ -326,7 +328,7 @@ export default function HomePage() {
                     }
                   }}
                   title={t("Cuộn sang trái", "Scroll left")}
-                  className="p-1 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition shrink-0 mr-1"
+                  className="p-1 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-white dark:hover:bg-slate-800 transition shrink-0 mr-1"
                 >
                   <ChevronLeft className="w-3.5 h-3.5" />
                 </button>
@@ -339,9 +341,9 @@ export default function HomePage() {
                       e.currentTarget.scrollLeft += e.deltaY;
                     }
                   }}
-                  className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scroll-smooth flex-1 py-1 px-0.5 cursor-grab active:cursor-grabbing select-none"
+                  className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scroll-smooth flex-1 py-0.5 cursor-grab active:cursor-grabbing select-none"
                 >
-                  <span className="text-[10px] uppercase font-bold text-slate-400 flex items-center gap-1 shrink-0 mr-0.5">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 flex items-center gap-1 shrink-0 mr-1">
                     <Tag className="w-3 h-3 text-blue-500" />
                     <span>{t("Thẻ", "Tags")}:</span>
                   </span>
@@ -350,7 +352,7 @@ export default function HomePage() {
                     onClick={() => setSelectedTag("all")}
                     className={`text-[11px] font-medium px-2 py-0.5 rounded-lg shrink-0 transition ${
                       selectedTag === "all"
-                        ? "bg-blue-50 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 font-bold"
+                        ? "bg-blue-600 text-white font-bold shadow-2xs"
                         : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
                     }`}
                   >
@@ -381,7 +383,7 @@ export default function HomePage() {
                     }
                   }}
                   title={t("Cuộn sang phải", "Scroll right")}
-                  className="p-1 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition shrink-0 ml-1"
+                  className="p-1 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-white dark:hover:bg-slate-800 transition shrink-0 ml-1"
                 >
                   <ChevronRight className="w-3.5 h-3.5" />
                 </button>
