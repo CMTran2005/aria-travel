@@ -3,7 +3,7 @@
 import React from "react";
 import { Clock, Navigation, MapPin, DollarSign, ArrowDown } from "lucide-react";
 import { POI } from "@/components/map/MapView";
-import { getCategoryLabel, formatCostVi } from "@/lib/formatters";
+import { getCategoryLabel, formatCostVi, calculateRoadDistanceKm } from "@/lib/formatters";
 import { useAppSettings } from "@/context/AppSettingsContext";
 
 export interface ItineraryItem {
@@ -54,22 +54,31 @@ export default function DayTimeline({
         return (
           <React.Fragment key={item.id || `${item.poi_id}-${index}`}>
             {/* Travel segment connector from previous POI */}
-            {index > 0 && (
-              <div className="flex items-center gap-3 py-1 px-4 text-xs font-medium text-slate-500">
-                <div className="w-8 flex justify-center">
-                  <div className="h-6 w-0.5 bg-slate-200 dark:bg-slate-700" />
+            {index > 0 && (() => {
+              const prevPOI = day.items[index - 1]?.poi;
+              const distKm = item.travel_distance_meters
+                ? item.travel_distance_meters / 1000
+                : prevPOI?.latitude && prevPOI?.longitude && item.poi?.latitude && item.poi?.longitude
+                ? calculateRoadDistanceKm(prevPOI.latitude, prevPOI.longitude, item.poi.latitude, item.poi.longitude)
+                : item.travel_time_to_prev_minutes
+                ? item.travel_time_to_prev_minutes * 0.4
+                : 0;
+
+              return (
+                <div className="flex items-center gap-3 py-1 px-4 text-xs font-medium text-slate-500">
+                  <div className="w-8 flex justify-center">
+                    <div className="h-6 w-0.5 bg-slate-200 dark:bg-slate-700" />
+                  </div>
+                  <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full border border-slate-200 dark:border-slate-700 text-[11px] text-slate-600 dark:text-slate-400">
+                    <Navigation className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+                    <span>
+                      {t("Di chuyển", "Travel")} ~{item.travel_time_to_prev_minutes || Math.round(distKm / 0.4) || 10} {t("phút", "min")}
+                      {distKm > 0 ? ` (~${distKm.toFixed(1)} km)` : ""}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full border border-slate-200 dark:border-slate-700 text-[11px] text-slate-600 dark:text-slate-400">
-                  <Navigation className="w-3 h-3 text-blue-600 dark:text-blue-400" />
-                  <span>
-                    {t("Di chuyển", "Travel")} ~{item.travel_time_to_prev_minutes} {t("phút", "min")}
-                    {item.travel_distance_meters
-                      ? ` (${(item.travel_distance_meters / 1000).toFixed(1)} km)`
-                      : ""}
-                  </span>
-                </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* POI Schedule Card */}
             <div

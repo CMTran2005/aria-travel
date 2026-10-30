@@ -28,7 +28,7 @@ import {
 import MapView, { POI } from "@/components/map/MapView";
 import DayTimeline, { ItineraryDay } from "@/components/timeline/DayTimeline";
 import { fetchTripDetail, fetchWeather, replanTrip } from "@/lib/api";
-import { formatCostVi, formatVnd, DINING_CATEGORIES } from "@/lib/formatters";
+import { formatCostVi, formatVnd, DINING_CATEGORIES, calculateRoadDistanceKm, calculatePolylineDistanceKm } from "@/lib/formatters";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/Toast";
 import HeaderSettings from "@/components/ui/HeaderSettings";
@@ -151,7 +151,7 @@ export default function TripDetailPage() {
     let ticketCostUsd = 0;
     let diningCostMinUsd = 0;
     let diningCostMaxUsd = 0;
-    let totalDistanceMeters = 0;
+    let rawMeters = 0;
 
     currentDay.items.forEach((item) => {
       const rawCost = item.poi?.avg_cost_usd || 0;
@@ -170,13 +170,42 @@ export default function TripDetailPage() {
       }
 
       if (item.travel_distance_meters) {
-        totalDistanceMeters += item.travel_distance_meters;
+        rawMeters += item.travel_distance_meters;
       }
     });
 
-    const totalKm = totalDistanceMeters / 1000;
-    // Estimated ~12,000 VND / km (~$0.48 / km)
-    const transitCostUsd = totalKm * 0.48;
+    // 1. Calculate actual travel distance (km)
+    // First try: from OSRM route polyline (exact driving path)
+    let totalKm = calculatePolylineDistanceKm(currentDay.route_geometry);
+
+    // Second try: from consecutive POI coordinates (Haversine * 1.35 road factor)
+    if (totalKm <= 0 && currentDay.items.length > 1) {
+      for (let i = 1; i < currentDay.items.length; i++) {
+        const prev = currentDay.items[i - 1]?.poi;
+        const curr = currentDay.items[i]?.poi;
+        if (prev?.latitude && prev?.longitude && curr?.latitude && curr?.longitude) {
+          totalKm += calculateRoadDistanceKm(prev.latitude, prev.longitude, curr.latitude, curr.longitude);
+        } else if (currentDay.items[i]?.travel_time_to_prev_minutes) {
+          totalKm += (currentDay.items[i].travel_time_to_prev_minutes || 10) * 0.4;
+        }
+      }
+    }
+
+    // Third try: from raw meters if present
+    if (totalKm <= 0 && rawMeters > 0) {
+      totalKm = rawMeters / 1000;
+    }
+
+    // Fallback: if multiple stops exist but totalKm still 0, estimate ~3.5 km per stop
+    const numTrips = Math.max(0, currentDay.items.length - 1);
+    if (totalKm <= 0 && numTrips > 0) {
+      totalKm = numTrips * 3.5;
+    }
+
+    // Realistic transit fare (Grab / Taxi in Vietnam):
+    // Base flag-fall fare: ~15,000 VND / trip + ~11,000 VND / km
+    const transitCostVnd = numTrips > 0 ? (numTrips * 15000 + totalKm * 11000) : 0;
+    const transitCostUsd = transitCostVnd / 25000;
 
     const totalMinUsd = ticketCostUsd + diningCostMinUsd + transitCostUsd;
     const totalMaxUsd = ticketCostUsd + diningCostMaxUsd + transitCostUsd * 1.15;
@@ -185,7 +214,7 @@ export default function TripDetailPage() {
       ticketCostVnd: ticketCostUsd * 25000,
       diningCostMinVnd: diningCostMinUsd * 25000,
       diningCostMaxVnd: diningCostMaxUsd * 25000,
-      transitCostVnd: transitCostUsd * 25000,
+      transitCostVnd,
       totalKm,
       totalMinVnd: totalMinUsd * 25000,
       totalMaxVnd: totalMaxUsd * 25000,

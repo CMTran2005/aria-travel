@@ -216,3 +216,49 @@ export function formatCostVi(
 ): string {
   return formatPoiCost(cost, category, lang, currency).fullText;
 }
+
+/**
+ * Haversine formula to compute distance between two GPS coordinates in kilometers.
+ * Multiplied by 1.35 road factor to reflect real driving routes over straight lines.
+ */
+export function calculateRoadDistanceKm(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+): number {
+  if (!lat1 || !lon1 || !lat2 || !lon2) return 0;
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c * 1.35;
+}
+
+/**
+ * Calculates total road distance in km from an array of GPS coordinates (route polyline).
+ */
+export function calculatePolylineDistanceKm(points?: [number, number][]): number {
+  if (!points || points.length < 2) return 0;
+  let totalKm = 0;
+  for (let i = 0; i < points.length - 1; i++) {
+    const [lat1, lon1] = points[i];
+    const [lat2, lon2] = points[i + 1];
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLon = ((lon2 - lon1) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((lat1 * Math.PI) / 180) *
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    totalKm += 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+  return totalKm;
+}
