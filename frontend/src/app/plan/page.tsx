@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { planTripWithAI } from "@/lib/api";
-import { getCategoryLabel, getCategoryLabelVi, formatCostVi, formatVnd } from "@/lib/formatters";
+import { getCategoryLabel, formatCostVi, formatVnd } from "@/lib/formatters";
 import CustomSelect, { CustomSelectGroup, CustomSelectOption } from "@/components/ui/CustomSelect";
 import DualThumbRangeSlider from "@/components/ui/DualThumbRangeSlider";
 import { useToast } from "@/components/ui/Toast";

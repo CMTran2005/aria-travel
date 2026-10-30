@@ -51,7 +51,7 @@ export default function HeaderSettings() {
         </button>
 
         {isOpen && (
-          <div className="absolute right-0 mt-2 w-64 p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl z-50 animate-in fade-in zoom-in-95 duration-150">
+          <div className="absolute right-0 mt-2 w-64 p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl z-[9999] animate-in fade-in zoom-in-95 duration-150">
             {/* Header */}
             <div className="text-xs font-bold text-slate-900 dark:text-white mb-2 px-1 flex items-center justify-between">
               <span>{t("Cài đặt hiển thị", "Preferences")}</span>
