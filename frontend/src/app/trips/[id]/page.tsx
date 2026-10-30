@@ -141,40 +141,10 @@ export default function TripDetailPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-center">
-        <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4" />
-        <h2 className="text-lg font-bold text-slate-800">Đang tải lịch trình chi tiết...</h2>
-        <p className="text-xs text-slate-500 mt-1">ARIA đang đồng bộ dữ liệu lộ trình và bản đồ.</p>
-      </div>
-    );
-  }
-
-  if (errorMsg || !trip) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-center">
-        <div className="p-4 rounded-full bg-rose-50 text-rose-600 mb-3 border border-rose-200">
-          <ChevronLeft className="w-6 h-6" />
-        </div>
-        <h2 className="text-lg font-bold text-slate-900">Không tìm thấy chuyến đi</h2>
-        <p className="text-xs text-slate-500 mt-1 max-w-sm mb-4">
-          {errorMsg || "Chuyến đi này có thể đã bị xóa hoặc không hợp lệ."}
-        </p>
-        <Link
-          href="/plan"
-          className="text-xs font-bold px-4 py-2 bg-slate-900 text-white rounded-xl shadow-sm"
-        >
-          Quay lại Lập kế hoạch
-        </Link>
-      </div>
-    );
-  }
-
-  const days: ItineraryDay[] = trip.days || [];
+  const days: ItineraryDay[] = trip?.days || [];
   const currentDay = days[selectedDayIdx] || null;
 
-  // Calculate transparent budget breakdown for the selected day
+  // Calculate transparent budget breakdown for the selected day (declared before early returns per React Rules of Hooks)
   const dayCostSummary = useMemo(() => {
     if (!currentDay || !currentDay.items || currentDay.items.length === 0) return null;
 
@@ -221,6 +191,38 @@ export default function TripDetailPage() {
       totalMaxVnd: totalMaxUsd * 25000,
     };
   }, [currentDay]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-center">
+        <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4" />
+        <h2 className="text-lg font-bold text-slate-800">Đang tải lịch trình chi tiết...</h2>
+        <p className="text-xs text-slate-500 mt-1">ARIA đang đồng bộ dữ liệu lộ trình và bản đồ.</p>
+      </div>
+    );
+  }
+
+  if (errorMsg || !trip) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-center">
+        <div className="p-4 rounded-full bg-rose-50 text-rose-600 mb-3 border border-rose-200">
+          <ChevronLeft className="w-6 h-6" />
+        </div>
+        <h2 className="text-lg font-bold text-slate-900">Không tìm thấy chuyến đi</h2>
+        <p className="text-xs text-slate-500 mt-1 max-w-sm mb-4">
+          {errorMsg || "Chuyến đi này có thể đã bị xóa hoặc không hợp lệ."}
+        </p>
+        <Link
+          href="/plan"
+          className="text-xs font-bold px-4 py-2 bg-slate-900 text-white rounded-xl shadow-sm"
+        >
+          Quay lại Lập kế hoạch
+        </Link>
+      </div>
+    );
+  }
+
+
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col justify-between transition-colors duration-200">
