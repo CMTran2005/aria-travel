@@ -203,21 +203,22 @@ export default function TripDetailPage() {
     }
 
     // Realistic transit fare (Grab / Taxi in Vietnam):
-    // Base flag-fall fare: ~15,000 VND / trip + ~11,000 VND / km
-    const transitCostVnd = numTrips > 0 ? (numTrips * 15000 + totalKm * 11000) : 0;
+    // Base flag-fall fare: ~15,000 VND / trip + ~11,000 VND / km, rounded to nearest 1,000 VND
+    const transitCostVnd = numTrips > 0 ? Math.round((numTrips * 15000 + totalKm * 11000) / 1000) * 1000 : 0;
     const transitCostUsd = transitCostVnd / 25000;
 
     const totalMinUsd = ticketCostUsd + diningCostMinUsd + transitCostUsd;
     const totalMaxUsd = ticketCostUsd + diningCostMaxUsd + transitCostUsd * 1.15;
 
+    // All VND values rounded cleanly to nearest thousand
     return {
-      ticketCostVnd: ticketCostUsd * 25000,
-      diningCostMinVnd: diningCostMinUsd * 25000,
-      diningCostMaxVnd: diningCostMaxUsd * 25000,
+      ticketCostVnd: Math.round((ticketCostUsd * 25000) / 1000) * 1000,
+      diningCostMinVnd: Math.round((diningCostMinUsd * 25000) / 1000) * 1000,
+      diningCostMaxVnd: Math.round((diningCostMaxUsd * 25000) / 1000) * 1000,
       transitCostVnd,
       totalKm,
-      totalMinVnd: totalMinUsd * 25000,
-      totalMaxVnd: totalMaxUsd * 25000,
+      totalMinVnd: Math.round((totalMinUsd * 25000) / 1000) * 1000,
+      totalMaxVnd: Math.round((totalMaxUsd * 25000) / 1000) * 1000,
     };
   }, [currentDay]);
 

@@ -81,29 +81,20 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
   };
 
   // Helper format money according to current currency setting
+  // Rounded cleanly: USD to whole integer, VND to nearest thousand (no decimal fractions)
   const formatMoney = (amountInVnd: number): string => {
     if (!amountInVnd || amountInVnd <= 0) {
       return language === "vi" ? "Miễn phí" : "Free";
     }
 
     if (currency === "USD") {
-      const usd = amountInVnd / 25000;
-      return `$${usd.toLocaleString("en-US", {
-        minimumFractionDigits: usd % 1 === 0 ? 0 : 2,
-        maximumFractionDigits: 2,
-      })}`;
+      const usd = Math.max(1, Math.round(amountInVnd / 25000));
+      return `$${usd.toLocaleString("en-US")}`;
     }
 
-    // Default VND
-    if (amountInVnd >= 1_000_000_000) {
-      const b = amountInVnd / 1_000_000_000;
-      return `${b.toLocaleString("vi-VN", { maximumFractionDigits: 1 })} ${language === "vi" ? "tỷ ₫" : "B VND"}`;
-    }
-    if (amountInVnd >= 1_000_000) {
-      const tr = amountInVnd / 1_000_000;
-      return `${tr % 1 === 0 ? tr : tr.toFixed(1)} ${language === "vi" ? "triệu ₫" : "M VND"}`;
-    }
-    return `${amountInVnd.toLocaleString("vi-VN")} ₫`;
+    // Default VND: rounded to nearest thousand, no decimal commas
+    const roundedVnd = Math.round(amountInVnd / 1000) * 1000;
+    return `${roundedVnd.toLocaleString("vi-VN")} ₫`;
   };
 
   // Helper translation string

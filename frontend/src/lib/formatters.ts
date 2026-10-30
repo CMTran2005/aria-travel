@@ -113,17 +113,18 @@ export function getCategoryLabelVi(category?: string | null): string {
 
 /**
  * Formats a budget number (in VND) into a clean, legible Vietnamese currency string.
+ * Rounded to nearest thousand or clean million without decimal commas.
  */
 export function formatVnd(amount: number): string {
   if (!amount || amount <= 0) return "Không giới hạn ngân sách";
-  if (amount >= 1_000_000_000) {
-    return `${(amount / 1_000_000_000).toLocaleString("vi-VN", { maximumFractionDigits: 1 })} tỷ ₫`;
+  const rounded = Math.round(amount / 1000) * 1000;
+  if (rounded >= 1_000_000_000 && rounded % 1_000_000_000 === 0) {
+    return `${rounded / 1_000_000_000} tỷ ₫`;
   }
-  if (amount >= 1_000_000) {
-    const tr = amount / 1_000_000;
-    return `${tr % 1 === 0 ? tr : tr.toFixed(1)} triệu ₫`;
+  if (rounded >= 1_000_000 && rounded % 1_000_000 === 0) {
+    return `${rounded / 1_000_000} triệu ₫`;
   }
-  return `${amount.toLocaleString("vi-VN")} ₫`;
+  return `${rounded.toLocaleString("vi-VN")} ₫`;
 }
 
 export interface FormattedPoiCost {
@@ -136,9 +137,10 @@ export interface FormattedPoiCost {
 
 /**
  * Transparent cost formatting:
- * - Dining/Cafe: "Từ ~35.000 ₫" / "From ~$1.5"
+ * - Dining/Cafe: "Từ ~35.000 ₫" / "From ~$2"
  * - Attraction/Museum: "Vé: ~50.000 ₫" or "Vé: Miễn phí" / "Ticket: ~$2" or "Ticket: Free"
  * - Free spots: "Miễn phí" / "Free"
+ * Numbers are rounded to clean integers (USD) or thousands (VND) with no decimal commas.
  */
 export function formatPoiCost(
   cost?: number | null,
@@ -153,14 +155,14 @@ export function formatPoiCost(
 
   let amountText = "";
   if (!isFree) {
-    const costInUsd = cost! < 1000 ? cost! : cost! / 25000;
-    const costInVnd = cost! < 1000 ? cost! * 25000 : cost!;
-
     if (currency === "USD") {
-      const formattedUsd = costInUsd % 1 === 0 ? costInUsd.toFixed(0) : costInUsd.toFixed(1);
-      amountText = `~$${formattedUsd}`;
+      const costInUsd = cost! < 1000 ? cost! : cost! / 25000;
+      const roundedUsd = Math.max(1, Math.round(costInUsd));
+      amountText = `~$${roundedUsd.toLocaleString("en-US")}`;
     } else {
-      amountText = `~${costInVnd.toLocaleString("vi-VN")} ₫`;
+      const costInVnd = cost! < 1000 ? cost! * 25000 : cost!;
+      const roundedVnd = Math.round(costInVnd / 1000) * 1000;
+      amountText = `~${roundedVnd.toLocaleString("vi-VN")} ₫`;
     }
   }
 
