@@ -1,7 +1,15 @@
 "use client";
 
 import React from "react";
-import { Clock, Navigation, MapPin, DollarSign, ArrowDown } from "lucide-react";
+import {
+  Clock,
+  Navigation,
+  MapPin,
+  ChevronUp,
+  ChevronDown,
+  Trash2,
+  Plus
+} from "lucide-react";
 import { POI } from "@/components/map/MapView";
 import { getCategoryLabel, formatCostVi, calculateRoadDistanceKm } from "@/lib/formatters";
 import { useAppSettings } from "@/context/AppSettingsContext";
@@ -29,19 +37,35 @@ interface DayTimelineProps {
   day: ItineraryDay;
   selectedPOI: POI | null;
   onSelectPOI: (poi: POI) => void;
+  onMoveItem?: (fromIdx: number, toIdx: number) => void;
+  onDeleteItem?: (itemIdx: number) => void;
+  onOpenAddModal?: () => void;
 }
 
 export default function DayTimeline({
   day,
   selectedPOI,
   onSelectPOI,
+  onMoveItem,
+  onDeleteItem,
+  onOpenAddModal,
 }: DayTimelineProps) {
   const { t, lang, currency } = useAppSettings();
 
   if (!day || !day.items || day.items.length === 0) {
     return (
-      <div className="p-8 text-center bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 text-slate-400 text-sm">
-        {t("Chưa có địa điểm nào được lên lịch cho ngày này.", "No locations scheduled for this day.")}
+      <div className="p-8 text-center bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 text-slate-400 text-sm space-y-3">
+        <p>{t("Chưa có địa điểm nào được lên lịch cho ngày này.", "No locations scheduled for this day.")}</p>
+        {onOpenAddModal && (
+          <button
+            type="button"
+            onClick={onOpenAddModal}
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs transition"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>{t("Thêm địa điểm đầu tiên", "Add first location")}</span>
+          </button>
+        )}
       </div>
     );
   }
@@ -107,9 +131,51 @@ export default function DayTimeline({
                     <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate">
                       {item.poi.name}
                     </h4>
-                    <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-100 dark:border-blue-900 shrink-0">
-                      {getCategoryLabel(item.poi.category, lang)}
-                    </span>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-100 dark:border-blue-900">
+                        {getCategoryLabel(item.poi.category, lang)}
+                      </span>
+
+                      {/* Reorder and Delete Actions */}
+                      <div
+                        className="flex items-center gap-0.5 ml-1 pl-1 border-l border-slate-200 dark:border-slate-700"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {onMoveItem && (
+                          <>
+                            <button
+                              type="button"
+                              disabled={index === 0}
+                              onClick={() => onMoveItem(index, index - 1)}
+                              title={t("Di chuyển lên trước", "Move up")}
+                              className="p-1 rounded-md text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 disabled:opacity-20 disabled:hover:bg-transparent disabled:hover:text-slate-400 transition"
+                            >
+                              <ChevronUp className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              disabled={index === day.items.length - 1}
+                              onClick={() => onMoveItem(index, index + 1)}
+                              title={t("Di chuyển xuống sau", "Move down")}
+                              className="p-1 rounded-md text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 disabled:opacity-20 disabled:hover:bg-transparent disabled:hover:text-slate-400 transition"
+                            >
+                              <ChevronDown className="w-3.5 h-3.5" />
+                            </button>
+                          </>
+                        )}
+                        {onDeleteItem && (
+                          <button
+                            type="button"
+                            onClick={() => onDeleteItem(index)}
+                            title={t("Xóa khỏi ngày", "Remove stop")}
+                            className="p-1 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   </div>
 
                   {/* Time Window */}
@@ -151,6 +217,18 @@ export default function DayTimeline({
           </React.Fragment>
         );
       })}
+
+      {/* Add POI to this day Button */}
+      {onOpenAddModal && (
+        <button
+          type="button"
+          onClick={onOpenAddModal}
+          className="w-full py-3 px-4 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800 hover:border-blue-500 dark:hover:border-blue-500 text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:text-blue-400 bg-white/40 dark:bg-slate-900/40 hover:bg-blue-50/40 dark:hover:bg-blue-950/20 transition flex items-center justify-center gap-2 text-xs font-bold"
+        >
+          <Plus className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+          <span>{t("Thêm địa điểm vào ngày này", "Add location to this day")}</span>
+        </button>
+      )}
     </div>
   );
 }

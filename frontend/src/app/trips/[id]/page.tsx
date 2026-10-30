@@ -23,16 +23,19 @@ import {
   Ticket,
   Utensils,
   Car,
-  Wallet
+  Wallet,
+  Search,
+  Plus
 } from "lucide-react";
 import MapView, { POI } from "@/components/map/MapView";
 import DayTimeline, { ItineraryDay } from "@/components/timeline/DayTimeline";
-import { fetchTripDetail, fetchWeather, replanTrip } from "@/lib/api";
+import { fetchTripDetail, fetchWeather, replanTrip, fetchPOIs } from "@/lib/api";
 import { formatCostVi, formatVnd, DINING_CATEGORIES, calculateRoadDistanceKm, calculatePolylineDistanceKm } from "@/lib/formatters";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/Toast";
 import HeaderSettings from "@/components/ui/HeaderSettings";
 import { useAppSettings } from "@/context/AppSettingsContext";
+import { saveTripToHistory } from "@/lib/tripsHistory";
 
 export default function TripDetailPage() {
   const params = useParams();
@@ -45,6 +48,12 @@ export default function TripDetailPage() {
   const [errorMsg, setErrorMsg] = useState("");
   const [selectedDayIdx, setSelectedDayIdx] = useState(0);
   const [selectedPOI, setSelectedPOI] = useState<POI | null>(null);
+
+  // States for customizing timeline (Move/Delete/Add POI)
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [availablePOIs, setAvailablePOIs] = useState<POI[]>([]);
+  const [loadingPOIs, setLoadingPOIs] = useState(false);
+  const [addPoiSearch, setAddPoiSearch] = useState("");
 
   // Sprint 6: Weather & Real-time Re-planning State
   const [weather, setWeather] = useState<any>(null);
@@ -62,6 +71,14 @@ export default function TripDetailPage() {
     fetchTripDetail(tripId)
       .then((data) => {
         setTrip(data);
+        if (data && data.id) {
+          saveTripToHistory({
+            id: data.id,
+            title: data.title || `Chuyến đi ${data.city || "Việt Nam"}`,
+            city: data.city || "Việt Nam",
+            num_days: data.days?.length || 1,
+          });
+        }
         if (data.days && data.days.length > 0 && data.days[0].items.length > 0) {
           setSelectedPOI(data.days[0].items[0].poi);
         }
@@ -103,6 +120,104 @@ export default function TripDetailPage() {
       supabase.removeChannel(channel);
     };
   }, [tripId]);
+
+  // Customizing Itinerary Handlers
+  const handleMoveItem = (dayIdx: number, fromIdx: number, toIdx: number) => {
+    if (!trip || !trip.days) return;
+    const newDays = [...trip.days];
+    const targetDay = { ...newDays[dayIdx] };
+    const items = [...targetDay.items];
+
+    if (fromIdx < 0 || fromIdx >= items.length || toIdx < 0 || toIdx >= items.length) return;
+
+    const [moved] = items.splice(fromIdx, 1);
+    items.splice(toIdx, 0, moved);
+
+    // Re-index visit orders and update time estimates
+    items.forEach((it, idx) => {
+      it.visit_order = idx + 1;
+    });
+
+    targetDay.items = items;
+    targetDay.route_geometry = items.map((it) => [it.poi.latitude, it.poi.longitude]);
+    newDays[dayIdx] = targetDay;
+
+    setTrip({ ...trip, days: newDays });
+    success(t("Đã đổi thứ tự", "Order updated"), t("Đã cập nhật lại thứ tự điểm tham quan.", "Stop sequence updated."));
+  };
+
+  const handleDeleteItem = (dayIdx: number, itemIdx: number) => {
+    if (!trip || !trip.days) return;
+    const newDays = [...trip.days];
+    const targetDay = { ...newDays[dayIdx] };
+    const items = [...targetDay.items];
+
+    const [removed] = items.splice(itemIdx, 1);
+    items.forEach((it, idx) => {
+      it.visit_order = idx + 1;
+    });
+
+    targetDay.items = items;
+    targetDay.route_geometry = items.map((it) => [it.poi.latitude, it.poi.longitude]);
+    newDays[dayIdx] = targetDay;
+
+    setTrip({ ...trip, days: newDays });
+    if (selectedPOI && removed && selectedPOI.id === removed.poi_id) {
+      setSelectedPOI(items[0]?.poi || null);
+    }
+    info(t("Đã xóa địa điểm", "Location removed"), t(`Đã xóa ${removed?.poi?.name || "điểm"} khỏi ngày.`, "Removed from day."));
+  };
+
+  const handleOpenAddModal = async () => {
+    setIsAddModalOpen(true);
+    setAddPoiSearch("");
+    if (availablePOIs.length === 0 && trip?.city) {
+      setLoadingPOIs(true);
+      try {
+        const res = await fetchPOIs(trip.city);
+        if (res && res.data) {
+          setAvailablePOIs(res.data);
+        }
+      } catch (e) {
+        console.error("Failed to load POIs for city", e);
+      } finally {
+        setLoadingPOIs(false);
+      }
+    }
+  };
+
+  const handleAddPOIToCurrentDay = (poi: POI) => {
+    if (!trip || !trip.days) return;
+    const newDays = [...trip.days];
+    const targetDay = { ...newDays[selectedDayIdx] };
+    const items = [...(targetDay.items || [])];
+
+    // Check if already in this day
+    if (items.some((it) => it.poi_id === poi.id)) {
+      info(t("Đã có trong lịch trình", "Already added"), t("Địa điểm này đã có trong ngày.", "Location is already in this day."));
+      return;
+    }
+
+    const newItem = {
+      poi_id: poi.id,
+      poi: poi,
+      visit_order: items.length + 1,
+      planned_start: "14:30",
+      planned_end: "16:00",
+      travel_time_to_prev_minutes: 15,
+      status: "planned",
+    };
+
+    items.push(newItem);
+    targetDay.items = items;
+    targetDay.route_geometry = items.map((it) => [it.poi.latitude, it.poi.longitude]);
+    newDays[selectedDayIdx] = targetDay;
+
+    setTrip({ ...trip, days: newDays });
+    setSelectedPOI(poi);
+    setIsAddModalOpen(false);
+    success(t("Đã thêm địa điểm", "Location added"), t(`Đã thêm ${poi.name} vào ngày ${targetDay.day_number}.`, `Added ${poi.name}.`));
+  };
 
   // Handle Real-time Re-planning trigger
   const handleTriggerReplan = async (
@@ -576,6 +691,9 @@ export default function TripDetailPage() {
                 day={currentDay}
                 selectedPOI={selectedPOI}
                 onSelectPOI={(poi) => setSelectedPOI(poi)}
+                onMoveItem={(fromIdx, toIdx) => handleMoveItem(selectedDayIdx, fromIdx, toIdx)}
+                onDeleteItem={(itemIdx) => handleDeleteItem(selectedDayIdx, itemIdx)}
+                onOpenAddModal={handleOpenAddModal}
               />
             ) : (
               <div className="p-8 text-center bg-white rounded-2xl border border-slate-200 text-slate-400 text-sm">
@@ -622,6 +740,104 @@ export default function TripDetailPage() {
           </div>
         </div>
       </main>
+
+      {/* Modal: Add Location to Day */}
+      {isAddModalOpen && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl max-w-lg w-full p-5 space-y-4 max-h-[85vh] flex flex-col">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div>
+                <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
+                  {t("Thêm địa điểm vào ngày", "Add Location to Day")} {currentDay?.day_number || 1}
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  {t("Chọn địa điểm tại", "Select location in")} {trip.city || "Việt Nam"}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAddModalOpen(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Search Input */}
+            <div className="relative">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+              <input
+                type="text"
+                value={addPoiSearch}
+                onChange={(e) => setAddPoiSearch(e.target.value)}
+                placeholder={t("Tìm kiếm tên quán, di tích, địa danh...", "Search locations by name...")}
+                className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600"
+              />
+            </div>
+
+            {/* POI List */}
+            <div className="flex-1 overflow-y-auto space-y-2 pr-1 min-h-[200px] max-h-[350px]">
+              {loadingPOIs ? (
+                <div className="py-12 text-center text-xs text-slate-400">
+                  <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                  <span>{t("Đang tải danh sách địa điểm...", "Loading locations...")}</span>
+                </div>
+              ) : (() => {
+                const dayPoiIds = new Set((currentDay?.items || []).map((it: any) => it.poi_id));
+                const filtered = availablePOIs.filter((p) => {
+                  if (dayPoiIds.has(p.id)) return false;
+                  if (!addPoiSearch.trim()) return true;
+                  return p.name.toLowerCase().includes(addPoiSearch.toLowerCase()) ||
+                    (p.address && p.address.toLowerCase().includes(addPoiSearch.toLowerCase()));
+                });
+
+                if (filtered.length === 0) {
+                  return (
+                    <div className="py-10 text-center text-xs text-slate-400">
+                      {t("Không tìm thấy địa điểm phù hợp hoặc tất cả đã có trong ngày.", "No matching locations or all are already added.")}
+                    </div>
+                  );
+                }
+
+                return filtered.map((poi) => (
+                  <div
+                    key={poi.id}
+                    className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-blue-400 dark:hover:border-blue-600 transition flex items-center justify-between gap-3 bg-slate-50/50 dark:bg-slate-800/40"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 mb-0.5">
+                        <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300">
+                          {poi.category || "Địa điểm"}
+                        </span>
+                        {poi.rating && (
+                          <span className="text-[10px] font-bold text-amber-600 flex items-center gap-0.5">
+                            ★ {poi.rating}
+                          </span>
+                        )}
+                      </div>
+                      <h5 className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
+                        {poi.name}
+                      </h5>
+                      <p className="text-[11px] text-slate-400 truncate mt-0.5">
+                        {poi.address || poi.city}
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleAddPOIToCurrentDay(poi)}
+                      className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1 shrink-0"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>{t("Thêm", "Add")}</span>
+                    </button>
+                  </div>
+                ));
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Footer */}
       <footer className="text-center py-4 text-xs text-slate-400 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">

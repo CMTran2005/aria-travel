@@ -3,13 +3,14 @@
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { planTripWithAI } from "@/lib/api";
+import { planTripWithAI, fetchPOIs } from "@/lib/api";
 import { getCategoryLabel, formatCostVi, formatVnd } from "@/lib/formatters";
 import CustomSelect, { CustomSelectGroup, CustomSelectOption } from "@/components/ui/CustomSelect";
 import DualThumbRangeSlider from "@/components/ui/DualThumbRangeSlider";
 import { useToast } from "@/components/ui/Toast";
 import HeaderSettings from "@/components/ui/HeaderSettings";
 import { useAppSettings } from "@/context/AppSettingsContext";
+import { saveTripToHistory } from "@/lib/tripsHistory";
 import {
   Sparkles,
   ArrowRight,
@@ -33,7 +34,11 @@ import {
   Trees,
   Activity,
   Layers,
-  Sparkle
+  Sparkle,
+  Trash2,
+  RotateCcw,
+  Search,
+  X
 } from "lucide-react";
 
 // Geographic data for cascading selection
@@ -208,6 +213,14 @@ export default function PlanPage() {
   const [result, setResult] = useState<any | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  // User POI customization states on recommended list
+  const [excludedPoiIds, setExcludedPoiIds] = useState<number[]>([]);
+  const [extraPois, setExtraPois] = useState<any[]>([]);
+  const [isAddPoiModalOpen, setIsAddPoiModalOpen] = useState(false);
+  const [cityCandidatePois, setCityCandidatePois] = useState<any[]>([]);
+  const [loadingCandidatePois, setLoadingCandidatePois] = useState(false);
+  const [candidateSearchText, setCandidateSearchText] = useState("");
+
   // Get current region object & cities list
   const currentRegion = useMemo(() => {
     return REGIONS_DATA.find((r) => r.id === selectedRegionId) || REGIONS_DATA[0];
@@ -273,6 +286,59 @@ export default function PlanPage() {
     return `Từ ${formatVnd(minB)} đến ${formatVnd(maxB)}`;
   }, [budgetRange]);
 
+  // Merged POI list with user customizations
+  const allDisplayPois = useMemo(() => {
+    if (!result || !result.recommended_pois) return [];
+    return [...result.recommended_pois, ...extraPois];
+  }, [result, extraPois]);
+
+  const activePoisCount = useMemo(() => {
+    return allDisplayPois.filter((p) => !excludedPoiIds.includes(p.id)).length;
+  }, [allDisplayPois, excludedPoiIds]);
+
+  const toggleExcludePoi = (id: number) => {
+    setExcludedPoiIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleOpenAddPoiModal = async () => {
+    setIsAddPoiModalOpen(true);
+    setCandidateSearchText("");
+    if (cityCandidatePois.length === 0 && (result?.city || selectedCity)) {
+      setLoadingCandidatePois(true);
+      try {
+        const res = await fetchPOIs(result?.city || selectedCity);
+        if (res && res.data) {
+          setCityCandidatePois(res.data);
+        }
+      } catch (err) {
+        console.error("Failed to load candidate POIs", err);
+      } finally {
+        setLoadingCandidatePois(false);
+      }
+    }
+  };
+
+  const handleAddCandidatePoi = (poi: any) => {
+    if (allDisplayPois.some((p) => p.id === poi.id)) {
+      // If it was previously excluded, unexclude it
+      if (excludedPoiIds.includes(poi.id)) {
+        setExcludedPoiIds((prev) => prev.filter((id) => id !== poi.id));
+      }
+      setIsAddPoiModalOpen(false);
+      return;
+    }
+    const newPoi = {
+      ...poi,
+      ai_score: 9.0,
+      ai_reason: t("Địa điểm do bạn thêm vào lộ trình", "Custom stop added by you"),
+    };
+    setExtraPois((prev) => [...prev, newPoi]);
+    setIsAddPoiModalOpen(false);
+    success(t("Đã thêm địa điểm", "Stop added"), t(`Đã thêm ${poi.name} vào danh sách đề xuất.`, `Added ${poi.name}.`));
+  };
+
   const handlePlan = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -303,6 +369,14 @@ export default function PlanPage() {
     try {
       const data = await planTripWithAI(finalPrompt, selectedCity);
       setResult(data);
+      if (data && data.trip_id) {
+        saveTripToHistory({
+          id: data.trip_id,
+          title: `Chuyến đi ${selectedCity} (${validDays} ngày)`,
+          city: selectedCity,
+          num_days: validDays,
+        });
+      }
       success("Tạo lịch trình thành công", `Đã tối ưu lộ trình ${validDays} ngày tại ${selectedCity}`);
     } catch (err: any) {
       const msg = err.message || "Đã xảy ra lỗi khi tạo lịch trình với AI.";
@@ -785,70 +859,219 @@ export default function PlanPage() {
               </div>
             </div>
 
-            {/* Top Recommended POIs - 3 Column Wide Grid with Clean Horizontal POI Cards */}
+            {/* Top Recommended POIs - 3 Column Wide Grid with Customization Controls */}
             <div>
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
                 <div className="flex items-center gap-2">
-                  <Layers className="w-4 h-4 text-blue-600" />
+                  <Layers className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                   <h3 className="text-base font-extrabold text-slate-900 dark:text-slate-100">
-                    Danh sách địa điểm được AI chọn lọc & phân bổ vào lộ trình
+                    {t("Địa điểm được AI chọn lọc & người dùng tùy chỉnh", "AI Curated & Customizable Stops")}
                   </h3>
                 </div>
-                <span className="text-xs text-slate-500 dark:text-slate-400 font-semibold bg-white dark:bg-slate-800 px-3 py-1 rounded-full border border-slate-200 dark:border-slate-700">
-                  {result.recommended_pois?.length || 0} địa điểm
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-600 dark:text-slate-300 font-semibold bg-white dark:bg-slate-800 px-3 py-1 rounded-full border border-slate-200 dark:border-slate-700 shadow-2xs">
+                    {t("Đã chọn", "Selected")}: <strong className="text-blue-600 dark:text-blue-400">{activePoisCount}</strong> / {allDisplayPois.length}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleOpenAddPoiModal}
+                    className="text-xs font-bold px-3 py-1 bg-blue-50 dark:bg-blue-950/60 hover:bg-blue-100 dark:hover:bg-blue-900/60 text-blue-700 dark:text-blue-300 rounded-full border border-blue-200 dark:border-blue-800 transition flex items-center gap-1 shadow-2xs"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>{t("Thêm điểm khác", "Add other stop")}</span>
+                  </button>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {result.recommended_pois?.map((poi: any, idx: number) => (
-                  <div
-                    key={poi.id || idx}
-                    className="p-4 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 transition space-y-2.5 shadow-xs flex flex-col justify-between"
-                  >
-                    <div>
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <h4 className="font-bold text-slate-900 dark:text-slate-100 text-sm truncate">
-                            {poi.name}
-                          </h4>
-                          <span className="text-[10px] uppercase font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-100 inline-block mt-1">
-                            {getCategoryLabel(poi.category, lang)}
-                          </span>
+                {allDisplayPois.map((poi: any, idx: number) => {
+                  const isExcluded = excludedPoiIds.includes(poi.id);
+                  return (
+                    <div
+                      key={poi.id || idx}
+                      className={`p-4 rounded-2xl border transition space-y-2.5 shadow-xs flex flex-col justify-between ${
+                        isExcluded
+                          ? "bg-slate-50/60 dark:bg-slate-900/40 border-dashed border-slate-300 dark:border-slate-800 opacity-60"
+                          : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700"
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <h4 className={`font-bold text-sm truncate ${isExcluded ? "line-through text-slate-500" : "text-slate-900 dark:text-slate-100"}`}>
+                              {poi.name}
+                            </h4>
+                            <div className="flex items-center gap-1.5 mt-1">
+                              <span className="text-[10px] uppercase font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 px-2 py-0.5 rounded border border-blue-100 dark:border-blue-900 inline-block">
+                                {getCategoryLabel(poi.category, lang)}
+                              </span>
+                              {isExcluded && (
+                                <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 px-1.5 py-0.2 rounded border border-rose-200 dark:border-rose-900">
+                                  {t("Đã bỏ qua", "Excluded")}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {poi.ai_score && (
+                              <div className="flex items-center gap-1 bg-slate-900 text-white px-2 py-0.5 rounded-lg text-xs font-bold">
+                                <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                                <span>{poi.ai_score}</span>
+                              </div>
+                            )}
+
+                            {/* Toggle Exclude / Include button */}
+                            {isExcluded ? (
+                              <button
+                                type="button"
+                                onClick={() => toggleExcludePoi(poi.id)}
+                                title={t("Khôi phục địa điểm này", "Restore this location")}
+                                className="px-2 py-1 rounded-lg text-xs font-bold bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-100 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 flex items-center gap-1 transition"
+                              >
+                                <RotateCcw className="w-3 h-3" />
+                                <span>{t("Chọn lại", "Restore")}</span>
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => toggleExcludePoi(poi.id)}
+                                title={t("Bỏ chọn địa điểm này", "Exclude from itinerary")}
+                                className="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
                         </div>
-                        <div className="flex items-center gap-1 bg-slate-900 text-white px-2 py-0.5 rounded-lg text-xs font-bold shrink-0">
-                          <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                          <span>{poi.ai_score || 8.5}</span>
+
+                        <p className="text-[11px] text-slate-400 truncate mt-1">
+                          {poi.address || t("Hội An, Quảng Nam", "Hoi An, Vietnam")}
+                        </p>
+
+                        <div className="mt-2.5 p-2.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-100 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-400 flex items-start gap-2">
+                          <CheckCircle2 className={`w-3.5 h-3.5 shrink-0 mt-0.5 ${isExcluded ? "text-slate-400" : "text-emerald-600"}`} />
+                          <span className="line-clamp-2 leading-relaxed text-[11px] text-slate-600 dark:text-slate-400">
+                            {poi.ai_reason}
+                          </span>
                         </div>
                       </div>
 
-                      <p className="text-[11px] text-slate-400 truncate mt-1">
-                        {poi.address || t("Hội An, Quảng Nam", "Hoi An, Vietnam")}
-                      </p>
-
-                      <div className="mt-2.5 p-2.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-100 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-400 flex items-start gap-2">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
-                        <span className="line-clamp-2 leading-relaxed text-[11px] text-slate-600 dark:text-slate-400">
-                          {poi.ai_reason}
+                      <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                        <span className="flex items-center gap-1 text-[11px]">
+                          <Clock className="w-3 h-3 text-slate-400" />
+                          <span>{poi.avg_duration_minutes || 45} {t("phút", "min")}</span>
+                        </span>
+                        <span className="font-bold text-slate-800 dark:text-slate-200 text-[11px]">
+                          {formatCostVi(poi.avg_cost_usd, lang, poi.category, currency)}
                         </span>
                       </div>
                     </div>
-
-                    <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-                      <span className="flex items-center gap-1 text-[11px]">
-                        <Clock className="w-3 h-3 text-slate-400" />
-                        <span>{poi.avg_duration_minutes || 45} phút</span>
-                      </span>
-                      <span className="font-bold text-slate-800 dark:text-slate-200 text-[11px]">
-                        {formatCostVi(poi.avg_cost_usd, lang, poi.category, currency)}
-                      </span>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>
         )}
       </main>
+
+      {/* Modal: Add Other Location to Recommendations */}
+      {isAddPoiModalOpen && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl max-w-lg w-full p-5 space-y-4 max-h-[85vh] flex flex-col">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div>
+                <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
+                  {t("Thêm địa điểm vào danh sách đề xuất", "Add Location to Recommendations")}
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  {t("Điểm đến tại", "Destinations in")} {result?.city || selectedCity}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAddPoiModalOpen(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Search Input */}
+            <div className="relative">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+              <input
+                type="text"
+                value={candidateSearchText}
+                onChange={(e) => setCandidateSearchText(e.target.value)}
+                placeholder={t("Tìm kiếm quán ăn, cà phê, di tích...", "Search restaurant, cafe, heritage...")}
+                className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600"
+              />
+            </div>
+
+            {/* POI List */}
+            <div className="flex-1 overflow-y-auto space-y-2 pr-1 min-h-[220px] max-h-[360px]">
+              {loadingCandidatePois ? (
+                <div className="py-12 text-center text-xs text-slate-400">
+                  <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                  <span>{t("Đang tải danh sách địa điểm...", "Loading locations...")}</span>
+                </div>
+              ) : (() => {
+                const existingIds = new Set(allDisplayPois.map((p) => p.id));
+                const filtered = cityCandidatePois.filter((p) => {
+                  if (existingIds.has(p.id)) return false;
+                  if (!candidateSearchText.trim()) return true;
+                  return p.name.toLowerCase().includes(candidateSearchText.toLowerCase()) ||
+                    (p.address && p.address.toLowerCase().includes(candidateSearchText.toLowerCase()));
+                });
+
+                if (filtered.length === 0) {
+                  return (
+                    <div className="py-10 text-center text-xs text-slate-400">
+                      {t("Không tìm thấy địa điểm phù hợp hoặc tất cả đã có trong danh sách.", "No matching locations or all already added.")}
+                    </div>
+                  );
+                }
+
+                return filtered.map((poi) => (
+                  <div
+                    key={poi.id}
+                    className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-blue-400 dark:hover:border-blue-600 transition flex items-center justify-between gap-3 bg-slate-50/50 dark:bg-slate-800/40"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 mb-0.5">
+                        <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300">
+                          {getCategoryLabel(poi.category, lang)}
+                        </span>
+                        {poi.rating && (
+                          <span className="text-[10px] font-bold text-amber-600 flex items-center gap-0.5">
+                            ★ {poi.rating}
+                          </span>
+                        )}
+                      </div>
+                      <h5 className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
+                        {poi.name}
+                      </h5>
+                      <p className="text-[11px] text-slate-400 truncate mt-0.5">
+                        {poi.address || poi.city}
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleAddCandidatePoi(poi)}
+                      className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1 shrink-0"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>{t("Thêm", "Add")}</span>
+                    </button>
+                  </div>
+                ));
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Footer */}
       <footer className="text-center py-4 text-xs text-slate-400 border-t border-slate-200 bg-white">
