@@ -16,7 +16,8 @@ import {
   Plus
 } from "lucide-react";
 import { useAppSettings } from "@/context/AppSettingsContext";
-import { getSavedTrips, removeTripFromHistory, SavedTrip } from "@/lib/tripsHistory";
+import { getSavedTrips, removeTripFromHistory, syncCloudTrips, SavedTrip } from "@/lib/tripsHistory";
+import { supabase } from "@/lib/supabase";
 
 export default function HeaderSettings() {
   const { theme, toggleTheme, language, setLanguage, currency, setCurrency, t } = useAppSettings();
@@ -32,12 +33,28 @@ export default function HeaderSettings() {
   useEffect(() => {
     setSavedTrips(getSavedTrips());
 
+    // Sync cloud trips if user is authenticated
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user?.id) {
+        syncCloudTrips(supabase, user.id).then((trips) => setSavedTrips(trips));
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user?.id) {
+        syncCloudTrips(supabase, session.user.id).then((trips) => setSavedTrips(trips));
+      }
+    });
+
     const handleTripsUpdate = () => {
       setSavedTrips(getSavedTrips());
     };
 
     window.addEventListener("aria_trips_updated", handleTripsUpdate);
-    return () => window.removeEventListener("aria_trips_updated", handleTripsUpdate);
+    return () => {
+      window.removeEventListener("aria_trips_updated", handleTripsUpdate);
+      subscription.unsubscribe();
+    };
   }, []);
 
   // Close when clicked outside

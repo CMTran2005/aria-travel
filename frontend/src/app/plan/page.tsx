@@ -11,6 +11,7 @@ import { useToast } from "@/components/ui/Toast";
 import HeaderSettings from "@/components/ui/HeaderSettings";
 import { useAppSettings } from "@/context/AppSettingsContext";
 import { saveTripToHistory } from "@/lib/tripsHistory";
+import { supabase } from "@/lib/supabase";
 import {
   Sparkles,
   ArrowRight,
@@ -367,7 +368,8 @@ export default function PlanPage() {
     }
 
     try {
-      const data = await planTripWithAI(finalPrompt, selectedCity);
+      const { data: { user } } = await supabase.auth.getUser();
+      const data = await planTripWithAI(finalPrompt, selectedCity, user?.id);
       setResult(data);
       if (data && data.trip_id) {
         saveTripToHistory({

@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import MapView, { POI } from "@/components/map/MapView";
 import DayTimeline, { ItineraryDay } from "@/components/timeline/DayTimeline";
+import PoiDetailModal from "@/components/poi/PoiDetailModal";
 import { fetchTripDetail, fetchWeather, replanTrip, fetchPOIs } from "@/lib/api";
 import { formatCostVi, formatVnd, DINING_CATEGORIES, calculateRoadDistanceKm, calculatePolylineDistanceKm } from "@/lib/formatters";
 import { supabase } from "@/lib/supabase";
@@ -48,6 +49,7 @@ export default function TripDetailPage() {
   const [errorMsg, setErrorMsg] = useState("");
   const [selectedDayIdx, setSelectedDayIdx] = useState(0);
   const [selectedPOI, setSelectedPOI] = useState<POI | null>(null);
+  const [inspectPOI, setInspectPOI] = useState<POI | null>(null);
 
   // States for customizing timeline (Move/Delete/Add POI)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -694,6 +696,7 @@ export default function TripDetailPage() {
                 onMoveItem={(fromIdx, toIdx) => handleMoveItem(selectedDayIdx, fromIdx, toIdx)}
                 onDeleteItem={(itemIdx) => handleDeleteItem(selectedDayIdx, itemIdx)}
                 onOpenAddModal={handleOpenAddModal}
+                onInspectPOI={(poi) => setInspectPOI(poi)}
               />
             ) : (
               <div className="p-8 text-center bg-white rounded-2xl border border-slate-200 text-slate-400 text-sm">
@@ -838,6 +841,13 @@ export default function TripDetailPage() {
           </div>
         </div>
       )}
+
+      {/* POI Detail Inspection Modal */}
+      <PoiDetailModal
+        poi={inspectPOI}
+        isOpen={!!inspectPOI}
+        onClose={() => setInspectPOI(null)}
+      />
 
       {/* Footer */}
       <footer className="text-center py-4 text-xs text-slate-400 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">

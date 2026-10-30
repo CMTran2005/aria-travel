@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { fetchPOIs, updatePOILocation } from "@/lib/api";
 import { User } from "@supabase/supabase-js";
 import dynamic from "next/dynamic";
-import { Star, Clock, MapPin, Compass } from "lucide-react";
+import { Star, Clock, MapPin, Compass, Search, Info } from "lucide-react";
+import PoiDetailModal from "@/components/poi/PoiDetailModal";
 import { POI } from "@/components/map/MapView";
 import CustomSelect, { CustomSelectGroup } from "@/components/ui/CustomSelect";
 import HeaderSettings from "@/components/ui/HeaderSettings";
@@ -77,6 +78,8 @@ export default function HomePage() {
   const [selectedPOI, setSelectedPOI] = useState<POI | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [detailModalPoi, setDetailModalPoi] = useState<POI | null>(null);
 
 
   useEffect(() => {
@@ -92,6 +95,18 @@ export default function HomePage() {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // Filtered POIs by search keyword
+  const displayedPOIs = useMemo(() => {
+    return pois.filter((poi) => {
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase();
+      return (
+        poi.name.toLowerCase().includes(q) ||
+        (poi.address && poi.address.toLowerCase().includes(q))
+      );
+    });
+  }, [pois, searchQuery]);
 
   const loadPOIs = async (city: string, cat?: string) => {
     try {
@@ -208,27 +223,51 @@ export default function HomePage() {
             </p>
           </div>
 
-          {/* Filter Pills */}
-          <div className="flex flex-wrap gap-1.5">
-            {[
-              { id: "all", labelVi: "Tất cả", labelEn: "All" },
-              { id: "tourism", labelVi: "Di tích & Danh thắng", labelEn: "Attractions" },
-              { id: "amenity=restaurant", labelVi: "Ẩm thực", labelEn: "Dining" },
-              { id: "amenity=cafe", labelVi: "Quán Cafe", labelEn: "Cafes" },
-              { id: "leisure", labelVi: "Giải trí", labelEn: "Leisure" },
-            ].map((cat) => (
-              <button
-                key={cat.id}
-                onClick={() => handleCategoryChange(cat.id)}
-                className={`text-xs font-semibold px-3 py-1.5 rounded-xl transition ${
-                  categoryFilter === cat.id
-                    ? "bg-slate-900 dark:bg-blue-600 text-white shadow-xs"
-                    : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700"
-                }`}
-              >
-                {t(cat.labelVi, cat.labelEn)}
-              </button>
-            ))}
+          {/* Search Bar & Filter Pills Row */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            {/* Search Input */}
+            <div className="relative w-full sm:w-72">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder={t(`Tìm kiếm tại ${selectedCity}...`, `Search places in ${selectedCity}...`)}
+                className="w-full pl-8 pr-7 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 shadow-2xs"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-2.5 top-1.5 text-xs text-slate-400 hover:text-slate-600"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            {/* Filter Pills */}
+            <div className="flex flex-wrap gap-1.5">
+              {[
+                { id: "all", labelVi: "Tất cả", labelEn: "All" },
+                { id: "tourism", labelVi: "Di tích & Danh thắng", labelEn: "Attractions" },
+                { id: "amenity=restaurant", labelVi: "Ẩm thực", labelEn: "Dining" },
+                { id: "amenity=cafe", labelVi: "Quán Cafe", labelEn: "Cafes" },
+                { id: "leisure", labelVi: "Giải trí", labelEn: "Leisure" },
+              ].map((cat) => (
+                <button
+                  key={cat.id}
+                  onClick={() => handleCategoryChange(cat.id)}
+                  className={`text-xs font-semibold px-3 py-1.5 rounded-xl transition ${
+                    categoryFilter === cat.id
+                      ? "bg-slate-900 dark:bg-blue-600 text-white shadow-xs"
+                      : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700"
+                  }`}
+                >
+                  {t(cat.labelVi, cat.labelEn)}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -240,12 +279,12 @@ export default function HomePage() {
               <div className="p-8 text-center text-sm text-slate-400 dark:text-slate-500">
                 {t("Đang tải danh sách địa điểm...", "Loading places...")}
               </div>
-            ) : pois.length === 0 ? (
+            ) : displayedPOIs.length === 0 ? (
               <div className="p-8 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 text-center text-sm text-slate-500 dark:text-slate-400">
                 {t("Không tìm thấy địa điểm nào theo bộ lọc này.", "No places found for this filter.")}
               </div>
             ) : (
-              pois.map((poi) => (
+              displayedPOIs.map((poi) => (
                 <div
                   key={poi.id}
                   onClick={() => setSelectedPOI(poi)}
@@ -272,9 +311,22 @@ export default function HomePage() {
                       <Clock className="w-3.5 h-3.5 text-slate-400" />
                       <span>{poi.avg_duration_minutes || 45} {t("phút", "mins")}</span>
                     </span>
-                    <span className="font-semibold text-slate-900 dark:text-emerald-400">
-                      {formatCostVi(poi.avg_cost_usd, lang, poi.category, currency)}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-slate-900 dark:text-emerald-400">
+                        {formatCostVi(poi.avg_cost_usd, lang, poi.category, currency)}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDetailModalPoi(poi);
+                        }}
+                        className="p-1 rounded-md text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition"
+                        title={t("Xem chi tiết", "View details")}
+                      >
+                        <Info className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))
@@ -334,6 +386,13 @@ export default function HomePage() {
           </div>
         </div>
       </main>
+
+      {/* POI Detail Modal */}
+      <PoiDetailModal
+        poi={detailModalPoi}
+        isOpen={!!detailModalPoi}
+        onClose={() => setDetailModalPoi(null)}
+      />
 
       {/* Footer */}
       <footer className="text-center py-4 text-xs text-slate-400 dark:text-slate-500 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">

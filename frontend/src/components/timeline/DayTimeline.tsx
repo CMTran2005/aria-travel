@@ -8,7 +8,8 @@ import {
   ChevronUp,
   ChevronDown,
   Trash2,
-  Plus
+  Plus,
+  Info
 } from "lucide-react";
 import { POI } from "@/components/map/MapView";
 import { getCategoryLabel, formatCostVi, calculateRoadDistanceKm } from "@/lib/formatters";
@@ -37,6 +38,7 @@ interface DayTimelineProps {
   day: ItineraryDay;
   selectedPOI: POI | null;
   onSelectPOI: (poi: POI) => void;
+  onInspectPOI?: (poi: POI) => void;
   onMoveItem?: (fromIdx: number, toIdx: number) => void;
   onDeleteItem?: (itemIdx: number) => void;
   onOpenAddModal?: () => void;
@@ -46,6 +48,7 @@ export default function DayTimeline({
   day,
   selectedPOI,
   onSelectPOI,
+  onInspectPOI,
   onMoveItem,
   onDeleteItem,
   onOpenAddModal,
@@ -163,6 +166,16 @@ export default function DayTimeline({
                               <ChevronDown className="w-3.5 h-3.5" />
                             </button>
                           </>
+                        )}
+                        {onInspectPOI && (
+                          <button
+                            type="button"
+                            onClick={() => onInspectPOI(item.poi)}
+                            title={t("Xem chi tiết", "View details")}
+                            className="p-1 rounded-md text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition"
+                          >
+                            <Info className="w-3.5 h-3.5" />
+                          </button>
                         )}
                         {onDeleteItem && (
                           <button
