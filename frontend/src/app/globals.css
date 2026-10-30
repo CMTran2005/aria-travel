@@ -44,7 +44,35 @@
   scrollbar-color: rgba(148, 163, 184, 0.2) transparent;
 }
 
-/* Utility classes to hide scrollbar while preserving scroll functionality */
+/* Thin scrollbar for specific feed containers with fixed gutter */
+.thin-scrollbar {
+  scrollbar-gutter: stable;
+}
+
+.thin-scrollbar::-webkit-scrollbar {
+  width: 5px;
+}
+
+.thin-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.thin-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.3);
+  border-radius: 9999px;
+}
+
+.thin-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.6);
+}
+
+.dark .thin-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.2);
+}
+
+.dark .thin-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.45);
+}
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }

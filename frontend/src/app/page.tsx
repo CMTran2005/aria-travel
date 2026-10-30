@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { fetchPOIs, updatePOILocation } from "@/lib/api";
 import { User } from "@supabase/supabase-js";
 import dynamic from "next/dynamic";
-import { Star, Clock, MapPin, Compass, Search, Info, Tag, SlidersHorizontal, Layers, X as XIcon } from "lucide-react";
+import { Star, Clock, MapPin, Compass, Search, Info, Tag, SlidersHorizontal, Layers, ChevronLeft, ChevronRight, X as XIcon } from "lucide-react";
 import PoiDetailModal from "@/components/poi/PoiDetailModal";
 import { POI } from "@/components/map/MapView";
 import CustomSelect, { CustomSelectGroup } from "@/components/ui/CustomSelect";
@@ -82,6 +82,9 @@ export default function HomePage() {
   const [selectedTag, setSelectedTag] = useState<string>("all");
   const [detailModalPoi, setDetailModalPoi] = useState<POI | null>(null);
 
+  // Ref for horizontal mouse wheel scrolling on tags container
+  const tagScrollRef = useRef<HTMLDivElement>(null);
+
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -112,7 +115,7 @@ export default function HomePage() {
     });
     return Object.entries(tagCount)
       .sort((a, b) => b[1] - a[1])
-      .slice(0, 10)
+      .slice(0, 25)
       .map(([tag]) => tag);
   }, [pois]);
 
@@ -236,8 +239,8 @@ export default function HomePage() {
 
       {/* Main Exploration Section: Split View POI List & Leaflet Map */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
-        <div className="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4">
-          <div>
+        <div className="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 mb-2">
               <span className="text-xs uppercase font-extrabold tracking-wider text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-2 py-0.5 rounded border border-blue-200 dark:border-blue-800">
                 {t("Khám phá thực địa", "Field Exploration")}
@@ -250,7 +253,7 @@ export default function HomePage() {
             <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
               {t("Bản đồ điểm tham quan thực tế", "Interactive POI Map")}
             </h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-xl">
               {t(
                 "Dữ liệu địa lý thực tế được tối ưu hóa cho du lịch và lưu trữ trong Supabase PostGIS.",
                 "Real geographic points optimized for tourism and stored in Supabase PostGIS."
@@ -258,10 +261,10 @@ export default function HomePage() {
             </p>
           </div>
 
-          {/* Search Bar & Filter Controls */}
-          <div className="flex flex-col gap-2.5 w-full md:w-auto">
+          {/* Search Bar & Filter Controls (Fixed Width Container) */}
+          <div className="flex flex-col gap-2.5 w-full md:w-[380px] lg:w-[420px] shrink-0">
             {/* Search Input with Clear Button */}
-            <div className="relative w-full md:w-80">
+            <div className="relative w-full">
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
               <input
                 type="text"
@@ -281,8 +284,15 @@ export default function HomePage() {
               )}
             </div>
 
-            {/* Category Filter Pills */}
-            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+            {/* Category Filter Pills (Fixed Width with Wheel Scroll) */}
+            <div
+              onWheel={(e) => {
+                if (e.deltaY !== 0) {
+                  e.currentTarget.scrollLeft += e.deltaY;
+                }
+              }}
+              className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5 cursor-grab active:cursor-grabbing select-none"
+            >
               {[
                 { id: "all", labelVi: "Tất cả", labelEn: "All" },
                 { id: "tourism", labelVi: "Di tích & Danh thắng", labelEn: "Attractions" },
@@ -304,38 +314,77 @@ export default function HomePage() {
               ))}
             </div>
 
-            {/* Dynamic Tag Pills Row (When tags are available) */}
+            {/* Dynamic Tag Pills Row with Mouse Wheel Horizontal Scrolling */}
             {availableTags.length > 0 && (
-              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-0.5">
-                <span className="text-[10px] uppercase font-bold text-slate-400 flex items-center gap-1 shrink-0 mr-1">
-                  <Tag className="w-3 h-3 text-blue-500" />
-                  <span>{t("Thẻ nổi bật", "Tags")}:</span>
-                </span>
+              <div className="relative flex items-center">
+                {/* Left arrow indicator for scrolling */}
                 <button
                   type="button"
-                  onClick={() => setSelectedTag("all")}
-                  className={`text-[11px] font-medium px-2 py-0.5 rounded-lg shrink-0 transition ${
-                    selectedTag === "all"
-                      ? "bg-blue-50 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 font-bold"
-                      : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
-                  }`}
+                  onClick={() => {
+                    if (tagScrollRef.current) {
+                      tagScrollRef.current.scrollBy({ left: -140, behavior: "smooth" });
+                    }
+                  }}
+                  title={t("Cuộn sang trái", "Scroll left")}
+                  className="p-1 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition shrink-0 mr-1"
                 >
-                  #{t("tất cả", "all")}
+                  <ChevronLeft className="w-3.5 h-3.5" />
                 </button>
-                {availableTags.map((tag) => (
+
+                <div
+                  ref={tagScrollRef}
+                  onWheel={(e) => {
+                    if (e.deltaY !== 0) {
+                      e.preventDefault();
+                      e.currentTarget.scrollLeft += e.deltaY;
+                    }
+                  }}
+                  className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scroll-smooth flex-1 py-1 px-0.5 cursor-grab active:cursor-grabbing select-none"
+                >
+                  <span className="text-[10px] uppercase font-bold text-slate-400 flex items-center gap-1 shrink-0 mr-0.5">
+                    <Tag className="w-3 h-3 text-blue-500" />
+                    <span>{t("Thẻ", "Tags")}:</span>
+                  </span>
                   <button
-                    key={tag}
                     type="button"
-                    onClick={() => setSelectedTag((prev) => (prev === tag ? "all" : tag))}
-                    className={`text-[11px] font-medium px-2 py-0.5 rounded-lg shrink-0 transition border ${
-                      selectedTag === tag
-                        ? "bg-blue-600 text-white border-blue-600 font-bold shadow-2xs"
-                        : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-blue-400 dark:hover:border-blue-600"
+                    onClick={() => setSelectedTag("all")}
+                    className={`text-[11px] font-medium px-2 py-0.5 rounded-lg shrink-0 transition ${
+                      selectedTag === "all"
+                        ? "bg-blue-50 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 font-bold"
+                        : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
                     }`}
                   >
-                    #{tag}
+                    #{t("tất cả", "all")}
                   </button>
-                ))}
+                  {availableTags.map((tag) => (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => setSelectedTag((prev) => (prev === tag ? "all" : tag))}
+                      className={`text-[11px] font-medium px-2 py-0.5 rounded-lg shrink-0 transition border ${
+                        selectedTag === tag
+                          ? "bg-blue-600 text-white border-blue-600 font-bold shadow-2xs"
+                          : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-blue-400 dark:hover:border-blue-600"
+                      }`}
+                    >
+                      #{tag}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Right arrow indicator for scrolling */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (tagScrollRef.current) {
+                      tagScrollRef.current.scrollBy({ left: 140, behavior: "smooth" });
+                    }
+                  }}
+                  title={t("Cuộn sang phải", "Scroll right")}
+                  className="p-1 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition shrink-0 ml-1"
+                >
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
               </div>
             )}
           </div>
@@ -343,8 +392,8 @@ export default function HomePage() {
 
         {/* Split View Container */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          {/* Left Column: POI Feed */}
-          <div className="lg:col-span-5 flex flex-col gap-3 max-h-[600px] overflow-y-auto pr-1">
+          {/* Left Column: POI Feed (Fixed width basis and custom slim scrollbar) */}
+          <div className="lg:col-span-5 flex flex-col gap-3 h-[600px] overflow-y-auto pr-1.5 thin-scrollbar">
             {loading ? (
               <div className="p-8 text-center text-sm text-slate-400 dark:text-slate-500">
                 {t("Đang tải danh sách địa điểm...", "Loading places...")}
