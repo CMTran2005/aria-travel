@@ -9,7 +9,7 @@ export type Currency = "VND" | "USD";
 interface AppSettingsContextType {
   theme: Theme;
   language: Language;
-  /** Shorthand alias for `language` — use with formatters that accept "vi" | "en" */
+  /** Shorthand alias for `language` — pass directly to formatters that accept "vi" | "en" */
   lang: Language;
   currency: Currency;
   setTheme: (theme: Theme) => void;
@@ -26,7 +26,6 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
   const [theme, setThemeState] = useState<Theme>("light");
   const [language, setLanguageState] = useState<Language>("vi");
   const [currency, setCurrencyState] = useState<Currency>("VND");
-  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     // Read saved preferences from localStorage
@@ -47,8 +46,6 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
 
     if (savedLang) setLanguageState(savedLang);
     if (savedCurrency) setCurrencyState(savedCurrency);
-
-    setMounted(true);
   }, []);
 
   const applyThemeClass = (newTheme: Theme) => {
