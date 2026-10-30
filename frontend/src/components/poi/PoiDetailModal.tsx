@@ -22,6 +22,7 @@ interface PoiDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAddToDay?: (poi: POI) => void;
+  onSelectTag?: (tag: string) => void;
 }
 
 // Visual category headers with curated gradients & icons
@@ -42,6 +43,7 @@ export default function PoiDetailModal({
   isOpen,
   onClose,
   onAddToDay,
+  onSelectTag,
 }: PoiDetailModalProps) {
   const { t, lang, currency } = useAppSettings();
 
@@ -155,17 +157,25 @@ export default function PoiDetailModal({
           {/* Tags list */}
           {poi.tags && Array.isArray(poi.tags) && poi.tags.length > 0 && (
             <div>
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block mb-2">
-                {t("Thẻ đặc trưng & Phong cách", "Tags & Characteristics")}
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block mb-2 flex items-center gap-1.5">
+                <Tag className="w-3 h-3 text-blue-500" />
+                <span>{t("Thẻ đặc trưng & Phong cách", "Tags & Characteristics")}</span>
               </span>
               <div className="flex flex-wrap gap-1.5">
                 {poi.tags.map((tag: string, idx: number) => (
-                  <span
+                  <button
                     key={idx}
-                    className="text-xs px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 font-medium"
+                    type="button"
+                    onClick={() => {
+                      if (onSelectTag) {
+                        onSelectTag(tag);
+                        onClose();
+                      }
+                    }}
+                    className="text-xs px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-blue-50 dark:bg-slate-800 dark:hover:bg-blue-950/50 text-slate-700 hover:text-blue-600 dark:text-slate-300 dark:hover:text-blue-400 border border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-700 font-medium transition cursor-pointer"
                   >
                     #{tag}
-                  </span>
+                  </button>
                 ))}
               </div>
             </div>

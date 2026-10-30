@@ -113,19 +113,19 @@ export default function DualThumbRangeSlider({
         .thumb::-webkit-slider-thumb {
           -webkit-appearance: none;
           pointer-events: auto;
-          width: 22px;
-          height: 22px;
+          width: 18px;
+          height: 18px;
           border-radius: 50%;
           background-color: #ffffff;
           border: 3px solid #2563eb;
-          box-shadow: 0 2px 6px rgba(37, 99, 235, 0.35);
+          box-shadow: 0 1px 4px rgba(37, 99, 235, 0.3);
           cursor: grab;
           transition: transform 0.1s ease, box-shadow 0.1s ease;
         }
 
         .thumb::-webkit-slider-thumb:hover {
           transform: scale(1.15);
-          box-shadow: 0 4px 10px rgba(37, 99, 235, 0.45);
+          box-shadow: 0 2px 8px rgba(37, 99, 235, 0.4);
         }
 
         .thumb::-webkit-slider-thumb:active {
@@ -137,12 +137,12 @@ export default function DualThumbRangeSlider({
 
         .thumb::-moz-range-thumb {
           pointer-events: auto;
-          width: 22px;
-          height: 22px;
+          width: 18px;
+          height: 18px;
           border-radius: 50%;
           background-color: #ffffff;
           border: 3px solid #2563eb;
-          box-shadow: 0 2px 6px rgba(37, 99, 235, 0.35);
+          box-shadow: 0 1px 4px rgba(37, 99, 235, 0.3);
           cursor: grab;
         }
 

@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { fetchPOIs, updatePOILocation } from "@/lib/api";
 import { User } from "@supabase/supabase-js";
 import dynamic from "next/dynamic";
-import { Star, Clock, MapPin, Compass, Search, Info } from "lucide-react";
+import { Star, Clock, MapPin, Compass, Search, Info, Tag, SlidersHorizontal, Layers, X as XIcon } from "lucide-react";
 import PoiDetailModal from "@/components/poi/PoiDetailModal";
 import { POI } from "@/components/map/MapView";
 import CustomSelect, { CustomSelectGroup } from "@/components/ui/CustomSelect";
@@ -79,6 +79,7 @@ export default function HomePage() {
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedTag, setSelectedTag] = useState<string>("all");
   const [detailModalPoi, setDetailModalPoi] = useState<POI | null>(null);
 
 
@@ -96,17 +97,48 @@ export default function HomePage() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Filtered POIs by search keyword
+  // Extract unique popular tags from current POI list
+  const availableTags = useMemo(() => {
+    const tagCount: Record<string, number> = {};
+    pois.forEach((poi) => {
+      if (Array.isArray(poi.tags)) {
+        poi.tags.forEach((tag) => {
+          const clean = tag.trim().toLowerCase();
+          if (clean && clean.length > 1) {
+            tagCount[clean] = (tagCount[clean] || 0) + 1;
+          }
+        });
+      }
+    });
+    return Object.entries(tagCount)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([tag]) => tag);
+  }, [pois]);
+
+  // Filtered POIs by search keyword (name, address, tags, category) and active tag
   const displayedPOIs = useMemo(() => {
     return pois.filter((poi) => {
+      // 1. Tag Filter
+      if (selectedTag !== "all") {
+        const hasTag = Array.isArray(poi.tags) && poi.tags.some(
+          (t) => t.toLowerCase() === selectedTag.toLowerCase()
+        );
+        if (!hasTag) return false;
+      }
+
+      // 2. Keyword Search
       if (!searchQuery.trim()) return true;
-      const q = searchQuery.toLowerCase();
-      return (
-        poi.name.toLowerCase().includes(q) ||
-        (poi.address && poi.address.toLowerCase().includes(q))
-      );
+      const q = searchQuery.toLowerCase().trim();
+
+      const matchName = poi.name?.toLowerCase().includes(q);
+      const matchAddress = poi.address?.toLowerCase().includes(q);
+      const matchCategory = poi.category?.toLowerCase().includes(q);
+      const matchTags = Array.isArray(poi.tags) && poi.tags.some((t) => t.toLowerCase().includes(q));
+
+      return matchName || matchAddress || matchCategory || matchTags;
     });
-  }, [pois, searchQuery]);
+  }, [pois, searchQuery, selectedTag]);
 
   const loadPOIs = async (city: string, cat?: string) => {
     try {
@@ -129,11 +161,14 @@ export default function HomePage() {
   const handleCityChange = (cityName: string) => {
     setSelectedCity(cityName);
     setSelectedPOI(null);
+    setSelectedTag("all");
+    setSearchQuery("");
     loadPOIs(cityName, categoryFilter);
   };
 
   const handleCategoryChange = (cat: string) => {
     setCategoryFilter(cat);
+    setSelectedTag("all");
     loadPOIs(selectedCity, cat);
   };
 
@@ -223,31 +258,31 @@ export default function HomePage() {
             </p>
           </div>
 
-          {/* Search Bar & Filter Pills Row */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            {/* Search Input */}
-            <div className="relative w-full sm:w-72">
+          {/* Search Bar & Filter Controls */}
+          <div className="flex flex-col gap-2.5 w-full md:w-auto">
+            {/* Search Input with Clear Button */}
+            <div className="relative w-full md:w-80">
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={t(`Tìm kiếm tại ${selectedCity}...`, `Search places in ${selectedCity}...`)}
-                className="w-full pl-8 pr-7 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 shadow-2xs"
+                placeholder={t(`Tìm theo tên, thẻ #tag, địa chỉ tại ${selectedCity}...`, `Search by name, #tag, address in ${selectedCity}...`)}
+                className="w-full pl-8 pr-7 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 shadow-2xs transition"
               />
               {searchQuery && (
                 <button
                   type="button"
                   onClick={() => setSearchQuery("")}
-                  className="absolute right-2.5 top-1.5 text-xs text-slate-400 hover:text-slate-600"
+                  className="absolute right-2.5 top-2 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition"
                 >
                   ✕
                 </button>
               )}
             </div>
 
-            {/* Filter Pills */}
-            <div className="flex flex-wrap gap-1.5">
+            {/* Category Filter Pills */}
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
               {[
                 { id: "all", labelVi: "Tất cả", labelEn: "All" },
                 { id: "tourism", labelVi: "Di tích & Danh thắng", labelEn: "Attractions" },
@@ -258,7 +293,7 @@ export default function HomePage() {
                 <button
                   key={cat.id}
                   onClick={() => handleCategoryChange(cat.id)}
-                  className={`text-xs font-semibold px-3 py-1.5 rounded-xl transition ${
+                  className={`text-xs font-semibold px-3 py-1.5 rounded-xl shrink-0 transition ${
                     categoryFilter === cat.id
                       ? "bg-slate-900 dark:bg-blue-600 text-white shadow-xs"
                       : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700"
@@ -268,6 +303,41 @@ export default function HomePage() {
                 </button>
               ))}
             </div>
+
+            {/* Dynamic Tag Pills Row (When tags are available) */}
+            {availableTags.length > 0 && (
+              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-0.5">
+                <span className="text-[10px] uppercase font-bold text-slate-400 flex items-center gap-1 shrink-0 mr-1">
+                  <Tag className="w-3 h-3 text-blue-500" />
+                  <span>{t("Thẻ nổi bật", "Tags")}:</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedTag("all")}
+                  className={`text-[11px] font-medium px-2 py-0.5 rounded-lg shrink-0 transition ${
+                    selectedTag === "all"
+                      ? "bg-blue-50 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 font-bold"
+                      : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
+                  }`}
+                >
+                  #{t("tất cả", "all")}
+                </button>
+                {availableTags.map((tag) => (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => setSelectedTag((prev) => (prev === tag ? "all" : tag))}
+                    className={`text-[11px] font-medium px-2 py-0.5 rounded-lg shrink-0 transition border ${
+                      selectedTag === tag
+                        ? "bg-blue-600 text-white border-blue-600 font-bold shadow-2xs"
+                        : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-blue-400 dark:hover:border-blue-600"
+                    }`}
+                  >
+                    #{tag}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
@@ -303,9 +373,30 @@ export default function HomePage() {
                       <span>{poi.rating || 4.5}</span>
                     </div>
                   </div>
+                  {/* Address & Tags Preview */}
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-1">
                     {poi.address || `${poi.city || selectedCity}, Việt Nam`}
                   </p>
+                  {poi.tags && Array.isArray(poi.tags) && poi.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1.5">
+                      {poi.tags.slice(0, 3).map((tg, idx) => (
+                        <span
+                          key={idx}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedTag(tg);
+                          }}
+                          className={`text-[10px] px-1.5 py-0.5 rounded transition ${
+                            selectedTag === tg
+                              ? "bg-blue-600 text-white font-bold"
+                              : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400"
+                          }`}
+                        >
+                          #{tg}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                   <div className="mt-3 flex items-center justify-between text-xs text-slate-600 dark:text-slate-300">
                     <span className="flex items-center gap-1 text-slate-500 dark:text-slate-400">
                       <Clock className="w-3.5 h-3.5 text-slate-400" />
@@ -392,6 +483,7 @@ export default function HomePage() {
         poi={detailModalPoi}
         isOpen={!!detailModalPoi}
         onClose={() => setDetailModalPoi(null)}
+        onSelectTag={(tag) => setSelectedTag(tag)}
       />
 
       {/* Footer */}
