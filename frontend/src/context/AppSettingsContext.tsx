@@ -9,6 +9,8 @@ export type Currency = "VND" | "USD";
 interface AppSettingsContextType {
   theme: Theme;
   language: Language;
+  /** Shorthand alias for `language` — use with formatters that accept "vi" | "en" */
+  lang: Language;
   currency: Currency;
   setTheme: (theme: Theme) => void;
   toggleTheme: () => void;
@@ -117,6 +119,7 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
       value={{
         theme,
         language,
+        lang: language,
         currency,
         setTheme,
         toggleTheme,

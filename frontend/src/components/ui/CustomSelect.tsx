@@ -100,7 +100,7 @@ export default function CustomSelect({
 
       {/* Dropdown Menu Modal/Popper */}
       {isOpen && (
-        <div className="absolute left-0 right-0 mt-1.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl z-50 max-h-72 overflow-y-auto animate-in fade-in zoom-in-95 duration-100">
+        <div className="absolute left-0 right-0 mt-1.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl z-[9999] max-h-72 overflow-y-auto animate-in fade-in zoom-in-95 duration-100">
           {groups ? (
             groups.map((group, gIdx) => (
               <div key={group.label} className={gIdx > 0 ? "border-t border-slate-100 dark:border-slate-800 mt-1 pt-1" : ""}>

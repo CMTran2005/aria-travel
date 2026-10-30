@@ -233,7 +233,7 @@ export default function TripDetailPage() {
           <div>
             <div className="flex items-center gap-2 mb-1.5">
               <span className="text-[11px] uppercase tracking-wider font-extrabold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 px-2.5 py-0.5 rounded border border-blue-200 dark:border-blue-800">
-                {trip.city || "Việt Nam"}
+                {trip.city || t("Việt Nam", "Vietnam")}
               </span>
               <span className="text-xs text-slate-400 font-medium">•</span>
               <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
@@ -306,7 +306,7 @@ export default function TripDetailPage() {
             <button
               onClick={() => handleTriggerReplan("traffic_delay", 45)}
               disabled={replanning}
-              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-white hover:bg-slate-50 text-purple-800 border border-purple-200 shadow-2xs flex items-center gap-1.5 transition disabled:opacity-50"
+              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-purple-800 dark:text-purple-300 border border-purple-200 dark:border-purple-800 shadow-2xs flex items-center gap-1.5 transition disabled:opacity-50"
             >
               <Clock className="w-3.5 h-3.5 text-purple-600" />
               <span>Trễ giờ / Tắc đường (+45p)</span>
@@ -359,20 +359,20 @@ export default function TripDetailPage() {
               }}
               className={`px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2 shrink-0 ${
                 selectedDayIdx === idx
-                  ? "bg-slate-900 text-white shadow-sm"
-                  : "bg-white text-slate-700 border border-slate-200 hover:border-slate-300"
+                  ? "bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-sm"
+                  : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600"
               }`}
             >
               <Calendar className="w-3.5 h-3.5" />
-              <span>Ngày {d.day_number}</span>
+              <span>{t("Ngày", "Day")} {d.day_number}</span>
               <span
                 className={`text-[10px] px-2 py-0.5 rounded-full ${
                   selectedDayIdx === idx
-                    ? "bg-slate-800 text-slate-300"
-                    : "bg-slate-100 text-slate-500"
+                    ? "bg-slate-800 dark:bg-slate-200 text-slate-300 dark:text-slate-700"
+                    : "bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400"
                 }`}
               >
-                {d.items?.length || 0} điểm
+                {d.items?.length || 0} {t("điểm", "stops")}
               </span>
             </button>
           ))}
@@ -382,13 +382,13 @@ export default function TripDetailPage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* Left Column: Day Itinerary Timeline */}
           <div className="lg:col-span-5 space-y-4">
-            <div className="flex items-center justify-between bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
-              <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+            <div className="flex items-center justify-between bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
+              <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm flex items-center gap-2">
                 <Clock className="w-4 h-4 text-blue-600" />
-                <span>Lịch trình chi tiết — Ngày {currentDay?.day_number || 1}</span>
+                <span>{t("Lịch trình chi tiết", "Detailed Schedule")} — {t("Ngày", "Day")} {currentDay?.day_number || 1}</span>
               </h3>
-              <span className="text-xs text-slate-500 font-semibold">
-                {currentDay?.items?.length || 0} địa điểm
+              <span className="text-xs text-slate-500 dark:text-slate-400 font-semibold">
+                {currentDay?.items?.length || 0} {t("địa điểm", "locations")}
               </span>
             </div>
 
@@ -407,13 +407,13 @@ export default function TripDetailPage() {
 
           {/* Right Column: Interactive Map View with Routing */}
           <div className="lg:col-span-7 sticky top-24">
-            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
-              <div className="p-3.5 border-b border-slate-100 flex items-center justify-between text-xs text-slate-600 bg-white">
-                <span className="font-bold text-slate-800 flex items-center gap-1.5">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xs">
+              <div className="p-3.5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-900">
+                <span className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
                   <MapPin className="w-4 h-4 text-blue-600" />
                   <span>Bản đồ hành trình tối ưu (OSRM Routing)</span>
                 </span>
-                <span className="text-[11px] text-slate-400">
+                <span className="text-[11px] text-slate-400 dark:text-slate-500">
                   Click vào điểm để xem thông tin
                 </span>
               </div>
@@ -445,7 +445,7 @@ export default function TripDetailPage() {
       </main>
 
       {/* Footer */}
-      <footer className="text-center py-4 text-xs text-slate-400 border-t border-slate-200 bg-white">
+      <footer className="text-center py-4 text-xs text-slate-400 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
         ARIA — Adaptive Route Intelligence Assistant © 2026 • AI Engine Powered by Groq & LangChain
       </footer>
     </div>

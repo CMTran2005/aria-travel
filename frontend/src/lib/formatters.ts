@@ -46,13 +46,61 @@ export const CATEGORY_LABELS_VI: Record<string, string> = {
   "theatre": "Nhà hát",
 };
 
+export const CATEGORY_LABELS_EN: Record<string, string> = {
+  "restaurant": "Restaurant",
+  "cafe": "Café",
+  "fast_food": "Fast Food",
+  "bar": "Bar & Pub",
+  "pub": "Pub",
+  "ice_cream": "Ice Cream",
+  "food_court": "Food Court",
+  "marketplace": "Market",
+
+  "tourism": "Tourism",
+  "attraction": "Attraction",
+  "viewpoint": "Viewpoint",
+  "museum": "Museum",
+  "gallery": "Art Gallery",
+  "monument": "Monument",
+  "historic": "Historic Site",
+  "ruins": "Ruins",
+  "memorial": "Memorial",
+  "artwork": "Artwork",
+  "information": "Tourist Info",
+
+  "park": "Park",
+  "beach": "Beach",
+  "nature_reserve": "Nature Reserve",
+  "resort": "Resort",
+  "spa": "Spa & Wellness",
+
+  "place_of_worship": "Place of Worship",
+  "temple": "Temple",
+  "pagoda": "Pagoda",
+  "church": "Church",
+
+  "leisure": "Leisure",
+  "theme_park": "Theme Park",
+  "nightclub": "Nightclub",
+  "cinema": "Cinema",
+  "theatre": "Theatre",
+};
+
 /**
- * Returns a user-friendly Vietnamese label for any given POI category.
+ * Returns a user-friendly label for any given POI category.
+ * Pass lang="en" for English, defaults to Vietnamese.
  */
-export function getCategoryLabelVi(category?: string | null): string {
-  if (!category) return "Điểm tham quan";
+export function getCategoryLabel(category?: string | null, lang: "vi" | "en" = "vi"): string {
+  if (!category) return lang === "en" ? "Attraction" : "Điểm tham quan";
   const clean = category.toLowerCase().replace(/^(amenity=|tourism=|historic=|leisure=)/, "").trim();
-  return CATEGORY_LABELS_VI[clean] || (clean ? clean.charAt(0).toUpperCase() + clean.slice(1) : "Điểm tham quan");
+  const map = lang === "en" ? CATEGORY_LABELS_EN : CATEGORY_LABELS_VI;
+  const fallback = lang === "en" ? "Attraction" : "Điểm tham quan";
+  return map[clean] || (clean ? clean.charAt(0).toUpperCase() + clean.slice(1) : fallback);
+}
+
+/** @deprecated Use getCategoryLabel(category, "vi") */
+export function getCategoryLabelVi(category?: string | null): string {
+  return getCategoryLabel(category, "vi");
 }
 
 /**
@@ -72,9 +120,12 @@ export function formatVnd(amount: number): string {
 
 /**
  * Formats a cost number (which could be in VND or USD legacy).
+ * Pass lang="en" to get "Free" instead of "Miễn phí".
  */
-export function formatCostVi(cost?: number | null): string {
-  if (cost === undefined || cost === null || cost === 0) return "Miễn phí";
+export function formatCostVi(cost?: number | null, lang: "vi" | "en" = "vi"): string {
+  if (cost === undefined || cost === null || cost === 0) {
+    return lang === "en" ? "Free" : "Miễn phí";
+  }
   // If cost is small (< 1000), it might be legacy USD
   if (cost < 1000) {
     const vndApprox = cost * 25000;
