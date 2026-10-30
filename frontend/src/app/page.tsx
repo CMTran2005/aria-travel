@@ -11,6 +11,7 @@ import { POI } from "@/components/map/MapView";
 import CustomSelect, { CustomSelectGroup } from "@/components/ui/CustomSelect";
 import HeaderSettings from "@/components/ui/HeaderSettings";
 import { useAppSettings } from "@/context/AppSettingsContext";
+import { formatCostVi } from "@/lib/formatters";
 
 const CITY_COORDINATES: Record<string, { lat: number; lon: number; zoom: number }> = {
   "Hội An": { lat: 15.8775, lon: 108.3285, zoom: 15 },
@@ -69,7 +70,7 @@ const MapView = dynamic(() => import("@/components/map/MapView"), {
 });
 
 export default function HomePage() {
-  const { theme, t, formatMoney } = useAppSettings();
+  const { theme, t, lang, currency, formatMoney } = useAppSettings();
   const [user, setUser] = useState<User | null>(null);
   const [selectedCity, setSelectedCity] = useState<string>("Hội An");
   const [pois, setPois] = useState<POI[]>([]);
@@ -272,7 +273,7 @@ export default function HomePage() {
                       <span>{poi.avg_duration_minutes || 45} {t("phút", "mins")}</span>
                     </span>
                     <span className="font-semibold text-slate-900 dark:text-emerald-400">
-                      {formatMoney((poi.avg_cost_usd || 0) * 25000)}
+                      {formatCostVi(poi.avg_cost_usd, lang, poi.category, currency)}
                     </span>
                   </div>
                 </div>

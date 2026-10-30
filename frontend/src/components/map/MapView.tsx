@@ -4,7 +4,8 @@ import { useEffect, useState, useRef } from "react";
 import dynamic from "next/dynamic";
 import "leaflet/dist/leaflet.css";
 import { Star, Clock } from "lucide-react";
-import { getCategoryLabelVi, formatCostVi } from "@/lib/formatters";
+import { getCategoryLabel, formatCostVi } from "@/lib/formatters";
+import { useAppSettings } from "@/context/AppSettingsContext";
 
 // Dynamic imports to prevent SSR window issues
 const MapContainer = dynamic(
@@ -113,6 +114,7 @@ export default function MapView({
   zoom = 15,
   routeGeometry,
 }: MapViewProps) {
+  const { lang, currency, t } = useAppSettings();
   const [mounted, setMounted] = useState(false);
   const [leafletLib, setLeafletLib] = useState<any>(null);
 
@@ -196,7 +198,7 @@ export default function MapView({
                 <div className="p-1 max-w-xs">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-[11px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
-                      {getCategoryLabelVi(poi.category)}
+                      {getCategoryLabel(poi.category, lang)}
                     </span>
                     {poi.rating && (
                       <div className="flex items-center gap-0.5 text-xs font-semibold text-amber-600">
@@ -214,10 +216,10 @@ export default function MapView({
                   <div className="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-600">
                     <span className="flex items-center gap-1">
                       <Clock className="w-3.5 h-3.5 text-slate-400" />
-                      <span>{poi.avg_duration_minutes || 45} phút</span>
+                      <span>{poi.avg_duration_minutes || 45} {t("phút", "mins")}</span>
                     </span>
                     <span className="font-semibold text-slate-900">
-                      {formatCostVi(poi.avg_cost_usd)}
+                      {formatCostVi(poi.avg_cost_usd, lang, poi.category, currency)}
                     </span>
                   </div>
                 </div>

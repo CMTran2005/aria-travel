@@ -36,7 +36,7 @@ export default function DayTimeline({
   selectedPOI,
   onSelectPOI,
 }: DayTimelineProps) {
-  const { t, lang } = useAppSettings();
+  const { t, lang, currency } = useAppSettings();
 
   if (!day || !day.items || day.items.length === 0) {
     return (
@@ -133,7 +133,7 @@ export default function DayTimeline({
                       </span>
                     </span>
                     <span className="font-bold text-slate-900 dark:text-slate-200">
-                      {formatCostVi(item.poi.avg_cost_usd, lang)}
+                      {formatCostVi(item.poi.avg_cost_usd, lang, item.poi.category, currency)}
                     </span>
                   </div>
                 </div>

@@ -76,11 +76,10 @@ export default function CustomSelect({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-full px-4 py-2.5 rounded-xl border text-left transition flex items-center justify-between gap-2 shadow-xs ${
-          isOpen
-            ? "border-blue-600 ring-2 ring-blue-600/20 bg-white dark:bg-slate-900"
-            : "border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/80 hover:bg-slate-100/70 dark:hover:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-700"
-        }`}
+        className={`w-full px-4 py-2.5 rounded-xl border text-left transition flex items-center justify-between gap-2 shadow-xs ${isOpen
+          ? "border-blue-600 ring-2 ring-blue-600/20 bg-white dark:bg-slate-900"
+          : "border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/80 hover:bg-slate-100/70 dark:hover:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-700"
+          }`}
       >
         <div className="flex items-center gap-2.5 min-w-0">
           {icon && <span className="text-blue-600 dark:text-blue-400 shrink-0">{icon}</span>}
@@ -92,9 +91,8 @@ export default function CustomSelect({
         </div>
 
         <ChevronDown
-          className={`w-4 h-4 text-slate-400 transition-transform duration-200 shrink-0 ${
-            isOpen ? "rotate-180 text-blue-600 dark:text-blue-400" : ""
-          }`}
+          className={`w-4 h-4 text-slate-400 transition-transform duration-200 shrink-0 ${isOpen ? "rotate-180 text-blue-600 dark:text-blue-400" : ""
+            }`}
         />
       </button>
 
@@ -117,11 +115,10 @@ export default function CustomSelect({
                         onChange(opt.value);
                         setIsOpen(false);
                       }}
-                      className={`w-full px-3.5 py-2 text-left transition flex items-center justify-between text-xs font-semibold ${
-                        isSelected
-                          ? "bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-bold"
-                          : "text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60"
-                      }`}
+                      className={`w-full px-3.5 py-2 text-left transition flex items-center justify-between text-xs font-semibold ${isSelected
+                        ? "bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-bold"
+                        : "text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60"
+                        }`}
                     >
                       <div className="min-w-0 pr-2">
                         <div className="flex items-center gap-2">
@@ -155,11 +152,10 @@ export default function CustomSelect({
                     onChange(opt.value);
                     setIsOpen(false);
                   }}
-                  className={`w-full px-3.5 py-2 text-left transition flex items-center justify-between text-xs font-semibold ${
-                    isSelected
-                      ? "bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-bold"
-                      : "text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60"
-                  }`}
+                  className={`w-full px-3.5 py-2 text-left transition flex items-center justify-between text-xs font-semibold ${isSelected
+                    ? "bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-bold"
+                    : "text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60"
+                    }`}
                 >
                   <div className="min-w-0 pr-2">
                     <span className="truncate block">{opt.label}</span>

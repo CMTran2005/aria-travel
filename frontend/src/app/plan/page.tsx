@@ -177,7 +177,7 @@ const GROUP_TYPES = [
 
 export default function PlanPage() {
   const router = useRouter();
-  const { theme, t, lang, formatMoney } = useAppSettings();
+  const { theme, t, lang, currency, formatMoney } = useAppSettings();
   const { success, error: toastError } = useToast();
   const [inputMode, setInputMode] = useState<"builder" | "freetext">("builder");
 
@@ -839,7 +839,7 @@ export default function PlanPage() {
                         <span>{poi.avg_duration_minutes || 45} phút</span>
                       </span>
                       <span className="font-bold text-slate-800 dark:text-slate-200 text-[11px]">
-                        {formatCostVi(poi.avg_cost_usd, lang)}
+                        {formatCostVi(poi.avg_cost_usd, lang, poi.category, currency)}
                       </span>
                     </div>
                   </div>

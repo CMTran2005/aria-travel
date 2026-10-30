@@ -86,6 +86,14 @@ export const CATEGORY_LABELS_EN: Record<string, string> = {
   "theatre": "Theatre",
 };
 
+export const DINING_CATEGORIES = new Set([
+  "restaurant", "cafe", "fast_food", "bar", "pub", "ice_cream", "food_court", "marketplace"
+]);
+
+export const TICKET_CATEGORIES = new Set([
+  "tourism", "attraction", "museum", "gallery", "monument", "historic", "ruins", "theme_park", "theatre", "cinema"
+]);
+
 /**
  * Returns a user-friendly label for any given POI category.
  * Pass lang="en" for English, defaults to Vietnamese.
@@ -118,18 +126,93 @@ export function formatVnd(amount: number): string {
   return `${amount.toLocaleString("vi-VN")} ₫`;
 }
 
+export interface FormattedPoiCost {
+  label: string;
+  amountText: string;
+  fullText: string;
+  isFree: boolean;
+  isDining: boolean;
+}
+
 /**
- * Formats a cost number (which could be in VND or USD legacy).
- * Pass lang="en" to get "Free" instead of "Miễn phí".
+ * Transparent cost formatting:
+ * - Dining/Cafe: "Từ ~35.000 ₫" / "From ~$1.5"
+ * - Attraction/Museum: "Vé: ~50.000 ₫" or "Vé: Miễn phí" / "Ticket: ~$2" or "Ticket: Free"
+ * - Free spots: "Miễn phí" / "Free"
  */
-export function formatCostVi(cost?: number | null, lang: "vi" | "en" = "vi"): string {
-  if (cost === undefined || cost === null || cost === 0) {
-    return lang === "en" ? "Free" : "Miễn phí";
+export function formatPoiCost(
+  cost?: number | null,
+  category?: string | null,
+  lang: "vi" | "en" = "vi",
+  currency: "VND" | "USD" = "VND"
+): FormattedPoiCost {
+  const isFree = cost === undefined || cost === null || cost === 0;
+  const cleanCat = (category || "").toLowerCase().replace(/^(amenity=|tourism=|historic=|leisure=)/, "").trim();
+  const isDining = DINING_CATEGORIES.has(cleanCat);
+  const isTicket = TICKET_CATEGORIES.has(cleanCat);
+
+  let amountText = "";
+  if (!isFree) {
+    const costInUsd = cost! < 1000 ? cost! : cost! / 25000;
+    const costInVnd = cost! < 1000 ? cost! * 25000 : cost!;
+
+    if (currency === "USD") {
+      const formattedUsd = costInUsd % 1 === 0 ? costInUsd.toFixed(0) : costInUsd.toFixed(1);
+      amountText = `~$${formattedUsd}`;
+    } else {
+      amountText = `~${costInVnd.toLocaleString("vi-VN")} ₫`;
+    }
   }
-  // If cost is small (< 1000), it might be legacy USD
-  if (cost < 1000) {
-    const vndApprox = cost * 25000;
-    return `~${vndApprox.toLocaleString("vi-VN")} ₫`;
+
+  if (isFree) {
+    const freeText = lang === "en" ? "Free" : "Miễn phí";
+    if (isTicket) {
+      const label = lang === "en" ? "Ticket" : "Vé";
+      return { label, amountText: freeText, fullText: `${label}: ${freeText}`, isFree: true, isDining };
+    }
+    return { label: "", amountText: freeText, fullText: freeText, isFree: true, isDining };
   }
-  return `${cost.toLocaleString("vi-VN")} ₫`;
+
+  if (isDining) {
+    const prefix = lang === "en" ? "From" : "Từ";
+    return {
+      label: lang === "en" ? "Dining" : "Chi tiêu",
+      amountText: `${prefix} ${amountText}`,
+      fullText: `${prefix} ${amountText}`,
+      isFree: false,
+      isDining: true,
+    };
+  }
+
+  if (isTicket) {
+    const label = lang === "en" ? "Ticket" : "Vé";
+    return {
+      label,
+      amountText,
+      fullText: `${label}: ${amountText}`,
+      isFree: false,
+      isDining: false,
+    };
+  }
+
+  const prefix = lang === "en" ? "From" : "Từ";
+  return {
+    label: lang === "en" ? "Est." : "Dự kiến",
+    amountText: `${prefix} ${amountText}`,
+    fullText: `${prefix} ${amountText}`,
+    isFree: false,
+    isDining: false,
+  };
+}
+
+/**
+ * Backward compatible helper for POI cost strings.
+ */
+export function formatCostVi(
+  cost?: number | null,
+  lang: "vi" | "en" = "vi",
+  category?: string | null,
+  currency: "VND" | "USD" = "VND"
+): string {
+  return formatPoiCost(cost, category, lang, currency).fullText;
 }
