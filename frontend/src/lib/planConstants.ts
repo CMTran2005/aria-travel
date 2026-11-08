@@ -147,3 +147,4 @@ export const GROUP_TYPES = [
   { id: "friends", label: "Nhóm bạn bè" },
   { id: "family", label: "Gia đình" },
 ];
+

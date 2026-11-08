@@ -118,3 +118,4 @@ export default function DayBudgetWidget({ dayNumber, summary }: DayBudgetWidgetP
     </div>
   );
 }
+

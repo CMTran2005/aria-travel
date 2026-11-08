@@ -90,3 +90,4 @@ export function calculateDayCostSummary(currentDay: ItineraryDay | null): DayBud
     totalMaxVnd: Math.round((totalMaxUsd * 25000) / 1000) * 1000,
   };
 }
+
