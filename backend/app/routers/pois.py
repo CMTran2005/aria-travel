@@ -33,6 +33,7 @@ def get_pois(
 ):
     """
     Get list of POIs from Supabase with decoded latitude and longitude.
+    Falls back to curated POIs if database connection is unavailable.
     """
     try:
         client = get_supabase_client()
@@ -54,6 +55,34 @@ def get_pois(
             })
         return {"data": pois, "count": len(pois)}
     except Exception as e:
+        # Fallback to curated POIs when Supabase is unreachable/paused
+        all_curated = list(CURATED_HOI_AN_POIS) + list(CURATED_DALAT_POIS) + list(CURATED_DANANG_POIS)
+        fallback_list = []
+        city_str = str(city).strip().lower() if city and not hasattr(city, "default") else None
+        cat_str = str(category).strip().lower() if category and not hasattr(category, "default") else None
+
+        for idx, item in enumerate(all_curated):
+            if city_str and item.get("city", "").lower() != city_str:
+                continue
+            if cat_str and cat_str not in item.get("category", "").lower():
+                continue
+            fallback_list.append({
+                "id": idx + 1,
+                "name": item.get("name"),
+                "category": item.get("category"),
+                "city": item.get("city"),
+                "address": item.get("address", ""),
+                "latitude": item.get("latitude"),
+                "longitude": item.get("longitude"),
+                "avg_duration_minutes": item.get("avg_duration_minutes", 60),
+                "avg_cost_usd": item.get("avg_cost_usd", 0.0),
+                "rating": item.get("rating", 4.5),
+                "tags": item.get("tags", []),
+                "source": "curated_fallback"
+            })
+        if fallback_list:
+            lim = int(limit) if isinstance(limit, int) else 100
+            return {"data": fallback_list[:lim], "count": len(fallback_list), "fallback": True}
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.patch("/{poi_id}/location")
