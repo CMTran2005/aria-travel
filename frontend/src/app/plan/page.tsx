@@ -240,6 +240,7 @@ export default function PlanPage() {
           title: `Chuyến đi ${selectedCity} (${validDays} ngày)`,
           city: selectedCity,
           num_days: validDays,
+          data: data,
         });
       }
       success("Tạo lịch trình thành công", `Đã tối ưu lộ trình ${validDays} ngày tại ${selectedCity}`);

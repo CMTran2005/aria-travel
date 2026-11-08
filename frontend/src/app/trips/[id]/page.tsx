@@ -39,7 +39,7 @@ import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/Toast";
 import HeaderSettings from "@/components/ui/HeaderSettings";
 import { useAppSettings } from "@/context/AppSettingsContext";
-import { saveTripToHistory } from "@/lib/tripsHistory";
+import { saveTripToHistory, getCachedTripData } from "@/lib/tripsHistory";
 
 export default function TripDetailPage() {
   const params = useParams();
@@ -83,6 +83,7 @@ export default function TripDetailPage() {
             title: data.title || `Chuyến đi ${data.city || "Việt Nam"}`,
             city: data.city || "Việt Nam",
             num_days: data.days?.length || 1,
+            data: data,
           });
         }
         if (data.days && data.days.length > 0 && data.days[0].items.length > 0) {
@@ -96,7 +97,19 @@ export default function TripDetailPage() {
         }
       })
       .catch((err) => {
-        setErrorMsg(err.message || "Không thể tải thông tin chuyến đi.");
+        // Fallback to locally cached trip data if network / DB is unavailable
+        const cached = getCachedTripData(tripId);
+        if (cached) {
+          setTrip(cached);
+          if (cached.days && cached.days.length > 0 && cached.days[0].items.length > 0) {
+            setSelectedPOI(cached.days[0].items[0].poi);
+          }
+          if (cached.city) {
+            fetchWeather(cached.city).then((w) => setWeather(w)).catch(() => {});
+          }
+        } else {
+          setErrorMsg(err.message || "Không thể tải thông tin chuyến đi.");
+        }
       })
       .finally(() => {
         setLoading(false);

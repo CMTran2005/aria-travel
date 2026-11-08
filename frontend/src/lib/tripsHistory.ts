@@ -4,9 +4,11 @@ export interface SavedTrip {
   city: string;
   num_days: number;
   created_at: number; // timestamp
+  data?: any; // cached full trip object (for instant offline recovery / fallback)
 }
 
 const STORAGE_KEY = "aria_recent_trips";
+const FULL_TRIPS_PREFIX = "aria_trip_data_";
 
 export function getSavedTrips(): SavedTrip[] {
   if (typeof window === "undefined") return [];
@@ -20,14 +22,38 @@ export function getSavedTrips(): SavedTrip[] {
   }
 }
 
+export function saveCachedTripData(tripId: string, fullData: any) {
+  if (typeof window === "undefined" || !tripId || !fullData) return;
+  try {
+    localStorage.setItem(`${FULL_TRIPS_PREFIX}${tripId}`, JSON.stringify(fullData));
+  } catch {
+    // quota exceeded or private browsing
+  }
+}
+
+export function getCachedTripData(tripId: string): any | null {
+  if (typeof window === "undefined" || !tripId) return null;
+  try {
+    const raw = localStorage.getItem(`${FULL_TRIPS_PREFIX}${tripId}`);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
 export function saveTripToHistory(trip: {
   id: string;
   title?: string;
   city?: string;
   num_days?: number;
+  data?: any;
 }): SavedTrip[] {
   if (typeof window === "undefined" || !trip.id) return [];
   try {
+    if (trip.data) {
+      saveCachedTripData(trip.id, trip.data);
+    }
+
     const existing = getSavedTrips();
     // Filter out if already exists, then prepend to top
     const filtered = existing.filter((t) => t.id !== trip.id);

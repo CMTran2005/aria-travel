@@ -169,18 +169,18 @@ def plan_trip_with_ai_and_optimizer(payload: PlanTripRequest):
                         client.table("itinerary_items").insert(items_to_insert).execute()
     except Exception as e:
         print(f"Warning: Could not save complete itinerary to Supabase: {e}")
-        # Generate persistent fallback UUID and cache in memory
+        # Always ensure trip is persisted in fallback storage if Supabase failed or was unreachable
         if not trip_id:
             trip_id = str(uuid.uuid4())
-            save_fallback_trip(trip_id, {
-                "id": trip_id,
-                "title": f"Chuyến đi {target_city} ({num_days} ngày)",
-                "city": target_city,
-                "budget_usd": intent.get("budget_usd", 100),
-                "preferences": intent,
-                "status": "planned",
-                "days": scheduled_days
-            })
+        save_fallback_trip(trip_id, {
+            "id": trip_id,
+            "title": f"Chuyến đi {target_city} ({num_days} ngày)",
+            "city": target_city,
+            "budget_usd": intent.get("budget_usd", 100),
+            "preferences": intent,
+            "status": "planned",
+            "days": scheduled_days
+        })
 
     return PlanTripResponse(
         trip_id=str(trip_id) if trip_id else None,
@@ -200,7 +200,7 @@ def get_trip_detail(trip_id: str):
     try:
         trip_res = client.table("trips").select("*").eq("id", trip_id).execute()
         if not trip_res.data:
-            # Check fallback memory store
+            # Check fallback disk/memory store
             fallback = get_fallback_trip(trip_id)
             if fallback:
                 return fallback
@@ -250,10 +250,12 @@ def get_trip_detail(trip_id: str):
             return fallback
         raise
     except Exception as e:
+        # If database connection fails (DNS/offline), check fallback store first
         fallback = get_fallback_trip(trip_id)
         if fallback:
             return fallback
-        raise HTTPException(status_code=500, detail=f"Lỗi truy vấn chuyến đi: {str(e)}")
+        # If not found even in fallback, raise 404 rather than misleading connection error 500
+        raise HTTPException(status_code=404, detail="Không tìm thấy chuyến đi (hoặc máy chủ cơ sở dữ liệu đang ngoại tuyến).")
 
 @router.get("/benchmark/compare")
 def compare_optimization_algorithms(city: str = "Hội An", num_days: int = 2):

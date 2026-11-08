@@ -30,6 +30,7 @@ import { calculateDayCostSummary } from "@/lib/budgetCalculator";
 import { useToast } from "@/components/ui/Toast";
 import HeaderSettings from "@/components/ui/HeaderSettings";
 import { useAppSettings } from "@/context/AppSettingsContext";
+import { getCachedTripData } from "@/lib/tripsHistory";
 
 export default function SharedTripPage() {
   const params = useParams();
@@ -57,7 +58,16 @@ export default function SharedTripPage() {
         }
       })
       .catch((err) => {
-        setErrorMsg(err.message || "Không thể tải thông tin lịch trình công khai.");
+        // Fallback to locally cached trip data if network / DB is unavailable
+        const cached = getCachedTripData(tripId);
+        if (cached) {
+          setTrip(cached);
+          if (cached.days && cached.days.length > 0 && cached.days[0].items.length > 0) {
+            setSelectedPOI(cached.days[0].items[0].poi);
+          }
+        } else {
+          setErrorMsg(err.message || "Không thể tải thông tin lịch trình công khai.");
+        }
       })
       .finally(() => {
         setLoading(false);
