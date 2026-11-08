@@ -30,6 +30,7 @@ import {
 import MapView, { POI } from "@/components/map/MapView";
 import DayTimeline, { ItineraryDay } from "@/components/timeline/DayTimeline";
 import PoiDetailModal from "@/components/poi/PoiDetailModal";
+import ShareTripModal from "@/components/trip/ShareTripModal";
 import { fetchTripDetail, fetchWeather, replanTrip, fetchPOIs } from "@/lib/api";
 import { formatCostVi, formatVnd, DINING_CATEGORIES, calculateRoadDistanceKm, calculatePolylineDistanceKm } from "@/lib/formatters";
 import { supabase } from "@/lib/supabase";
@@ -50,6 +51,7 @@ export default function TripDetailPage() {
   const [selectedDayIdx, setSelectedDayIdx] = useState(0);
   const [selectedPOI, setSelectedPOI] = useState<POI | null>(null);
   const [inspectPOI, setInspectPOI] = useState<POI | null>(null);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
   // States for customizing timeline (Move/Delete/Add POI)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -407,18 +409,8 @@ export default function TripDetailPage() {
           <HeaderSettings />
 
           <button
-            onClick={() => {
-              if (navigator.share) {
-                navigator.share({ title: trip.title, url: window.location.href });
-              } else {
-                navigator.clipboard.writeText(window.location.href);
-                success(
-                  t("Đã sao chép liên kết", "Link copied"),
-                  t("Bạn có thể gửi liên kết này cho bạn bè hoặc người đồng hành.", "You can share this link with companions.")
-                );
-              }
-            }}
-            className="px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg flex items-center gap-1.5 transition active:scale-95"
+            onClick={() => setIsShareModalOpen(true)}
+            className="px-3 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 rounded-lg flex items-center gap-1.5 transition active:scale-95 shadow-2xs"
           >
             <Share2 className="w-3.5 h-3.5" />
             <span>{t("Chia sẻ", "Share")}</span>
@@ -847,6 +839,15 @@ export default function TripDetailPage() {
         poi={inspectPOI}
         isOpen={!!inspectPOI}
         onClose={() => setInspectPOI(null)}
+      />
+
+      {/* Share Trip Modal */}
+      <ShareTripModal
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        tripId={tripId}
+        tripTitle={trip?.title}
+        city={trip?.city}
       />
 
       {/* Footer */}
