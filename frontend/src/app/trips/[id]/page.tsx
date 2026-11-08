@@ -31,8 +31,10 @@ import MapView, { POI } from "@/components/map/MapView";
 import DayTimeline, { ItineraryDay } from "@/components/timeline/DayTimeline";
 import PoiDetailModal from "@/components/poi/PoiDetailModal";
 import ShareTripModal from "@/components/trip/ShareTripModal";
+import DayBudgetWidget from "@/components/trip/DayBudgetWidget";
 import { fetchTripDetail, fetchWeather, replanTrip, fetchPOIs } from "@/lib/api";
-import { formatCostVi, formatVnd, DINING_CATEGORIES, calculateRoadDistanceKm, calculatePolylineDistanceKm } from "@/lib/formatters";
+import { formatCostVi, formatVnd, calculateRoadDistanceKm } from "@/lib/formatters";
+import { calculateDayCostSummary } from "@/lib/budgetCalculator";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/Toast";
 import HeaderSettings from "@/components/ui/HeaderSettings";
@@ -265,80 +267,7 @@ export default function TripDetailPage() {
 
   // Calculate transparent budget breakdown for the selected day (declared before early returns per React Rules of Hooks)
   const dayCostSummary = useMemo(() => {
-    if (!currentDay || !currentDay.items || currentDay.items.length === 0) return null;
-
-    let ticketCostUsd = 0;
-    let diningCostMinUsd = 0;
-    let diningCostMaxUsd = 0;
-    let rawMeters = 0;
-
-    currentDay.items.forEach((item) => {
-      const rawCost = item.poi?.avg_cost_usd || 0;
-      // Normalize cost: if >= 1000, it's VND; otherwise USD
-      const costUsd = rawCost >= 1000 ? rawCost / 25000 : rawCost;
-      const cat = (item.poi?.category || "")
-        .toLowerCase()
-        .replace(/^(amenity=|tourism=|historic=|leisure=)/, "")
-        .trim();
-
-      if (DINING_CATEGORIES.has(cat)) {
-        diningCostMinUsd += costUsd;
-        diningCostMaxUsd += costUsd * 1.6;
-      } else {
-        ticketCostUsd += costUsd;
-      }
-
-      if (item.travel_distance_meters) {
-        rawMeters += item.travel_distance_meters;
-      }
-    });
-
-    // 1. Calculate actual travel distance (km)
-    // First try: from OSRM route polyline (exact driving path)
-    let totalKm = calculatePolylineDistanceKm(currentDay.route_geometry);
-
-    // Second try: from consecutive POI coordinates (Haversine * 1.35 road factor)
-    if (totalKm <= 0 && currentDay.items.length > 1) {
-      for (let i = 1; i < currentDay.items.length; i++) {
-        const prev = currentDay.items[i - 1]?.poi;
-        const curr = currentDay.items[i]?.poi;
-        if (prev?.latitude && prev?.longitude && curr?.latitude && curr?.longitude) {
-          totalKm += calculateRoadDistanceKm(prev.latitude, prev.longitude, curr.latitude, curr.longitude);
-        } else if (currentDay.items[i]?.travel_time_to_prev_minutes) {
-          totalKm += (currentDay.items[i].travel_time_to_prev_minutes || 10) * 0.4;
-        }
-      }
-    }
-
-    // Third try: from raw meters if present
-    if (totalKm <= 0 && rawMeters > 0) {
-      totalKm = rawMeters / 1000;
-    }
-
-    // Fallback: if multiple stops exist but totalKm still 0, estimate ~3.5 km per stop
-    const numTrips = Math.max(0, currentDay.items.length - 1);
-    if (totalKm <= 0 && numTrips > 0) {
-      totalKm = numTrips * 3.5;
-    }
-
-    // Realistic transit fare (Grab / Taxi in Vietnam):
-    // Base flag-fall fare: ~15,000 VND / trip + ~11,000 VND / km, rounded to nearest 1,000 VND
-    const transitCostVnd = numTrips > 0 ? Math.round((numTrips * 15000 + totalKm * 11000) / 1000) * 1000 : 0;
-    const transitCostUsd = transitCostVnd / 25000;
-
-    const totalMinUsd = ticketCostUsd + diningCostMinUsd + transitCostUsd;
-    const totalMaxUsd = ticketCostUsd + diningCostMaxUsd + transitCostUsd * 1.15;
-
-    // All VND values rounded cleanly to nearest thousand
-    return {
-      ticketCostVnd: Math.round((ticketCostUsd * 25000) / 1000) * 1000,
-      diningCostMinVnd: Math.round((diningCostMinUsd * 25000) / 1000) * 1000,
-      diningCostMaxVnd: Math.round((diningCostMaxUsd * 25000) / 1000) * 1000,
-      transitCostVnd,
-      totalKm,
-      totalMinVnd: Math.round((totalMinUsd * 25000) / 1000) * 1000,
-      totalMaxVnd: Math.round((totalMaxUsd * 25000) / 1000) * 1000,
-    };
+    return calculateDayCostSummary(currentDay);
   }, [currentDay]);
 
   if (loading) {
@@ -572,99 +501,10 @@ export default function TripDetailPage() {
         </div>
 
         {/* Day Budget Breakdown Widget (Transparent Costs: Tickets + Dining + Transit) */}
-        {dayCostSummary && (
-          <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 mb-3 border-b border-slate-100 dark:border-slate-800">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-                  <Wallet className="w-4 h-4" />
-                </div>
-                <div>
-                  <h4 className="text-xs font-extrabold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                    <span>{t("Dự toán chi phí minh bạch", "Transparent Budget Estimate")}</span>
-                    <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50 px-2 py-0.5 rounded-full border border-blue-200 dark:border-blue-900">
-                      {t("Ngày", "Day")} {currentDay?.day_number || 1}
-                    </span>
-                  </h4>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                    {t(
-                      "Bóc tách vé tham quan cố định, khoảng ước tính ăn uống và cước di chuyển",
-                      "Breakdown of fixed tickets, estimated dining range, and transit costs"
-                    )}
-                  </p>
-                </div>
-              </div>
-
-              {/* Total Estimated Range Badge */}
-              <div className="flex items-baseline gap-1.5 bg-emerald-50/70 dark:bg-emerald-950/40 px-3.5 py-1.5 rounded-xl border border-emerald-200 dark:border-emerald-800/80 self-start sm:self-auto">
-                <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
-                  {t("Dự kiến ngày:", "Est. Day Total:")}
-                </span>
-                <span className="text-sm font-black text-emerald-900 dark:text-emerald-300">
-                  ~{formatMoney(dayCostSummary.totalMinVnd)}
-                  {dayCostSummary.totalMaxVnd > dayCostSummary.totalMinVnd && (
-                    <span> – {formatMoney(dayCostSummary.totalMaxVnd)}</span>
-                  )}
-                </span>
-              </div>
-            </div>
-
-            {/* 3 Component Breakdown Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {/* 1. Tickets (Fixed) */}
-              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/60 flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
-                  <Ticket className="w-4 h-4" />
-                </div>
-                <div className="min-w-0">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block">
-                    {t("Vé tham quan", "Entrance Tickets")}
-                  </span>
-                  <p className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate mt-0.5">
-                    {dayCostSummary.ticketCostVnd > 0 ? formatMoney(dayCostSummary.ticketCostVnd) : t("Miễn phí", "Free")}
-                  </p>
-                </div>
-              </div>
-
-              {/* 2. Dining (Range) */}
-              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/60 flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
-                  <Utensils className="w-4 h-4" />
-                </div>
-                <div className="min-w-0">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block">
-                    {t("Ăn uống & Cà phê", "Dining & Cafe")}
-                  </span>
-                  <p className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate mt-0.5">
-                    {dayCostSummary.diningCostMinVnd > 0 ? (
-                      <>
-                        <span className="text-[11px] font-normal text-slate-500">{t("Từ", "From")} </span>
-                        {formatMoney(dayCostSummary.diningCostMinVnd)} – {formatMoney(dayCostSummary.diningCostMaxVnd)}
-                      </>
-                    ) : (
-                      t("Tự túc / Không có", "None scheduled")
-                    )}
-                  </p>
-                </div>
-              </div>
-
-              {/* 3. Transit Estimate */}
-              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/60 flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
-                  <Car className="w-4 h-4" />
-                </div>
-                <div className="min-w-0">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block">
-                    {t("Di chuyển ước tính", "Est. Transit")} (~{dayCostSummary.totalKm.toFixed(1)} km)
-                  </span>
-                  <p className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate mt-0.5">
-                    ~{formatMoney(dayCostSummary.transitCostVnd)}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        <DayBudgetWidget
+          dayNumber={currentDay?.day_number || 1}
+          summary={dayCostSummary}
+        />
 
         {/* Split Screen Grid: Left = Timeline, Right = Map */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">

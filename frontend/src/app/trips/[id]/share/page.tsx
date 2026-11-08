@@ -24,8 +24,9 @@ import {
 import MapView, { POI } from "@/components/map/MapView";
 import DayTimeline, { ItineraryDay } from "@/components/timeline/DayTimeline";
 import PoiDetailModal from "@/components/poi/PoiDetailModal";
+import DayBudgetWidget from "@/components/trip/DayBudgetWidget";
 import { fetchTripDetail } from "@/lib/api";
-import { DINING_CATEGORIES, calculateRoadDistanceKm, calculatePolylineDistanceKm } from "@/lib/formatters";
+import { calculateDayCostSummary } from "@/lib/budgetCalculator";
 import { useToast } from "@/components/ui/Toast";
 import HeaderSettings from "@/components/ui/HeaderSettings";
 import { useAppSettings } from "@/context/AppSettingsContext";
@@ -68,68 +69,7 @@ export default function SharedTripPage() {
 
   // Calculate transparent budget breakdown for the selected day
   const dayCostSummary = useMemo(() => {
-    if (!currentDay || !currentDay.items || currentDay.items.length === 0) return null;
-
-    let ticketCostUsd = 0;
-    let diningCostMinUsd = 0;
-    let diningCostMaxUsd = 0;
-    let rawMeters = 0;
-
-    currentDay.items.forEach((item) => {
-      const rawCost = item.poi?.avg_cost_usd || 0;
-      const costUsd = rawCost >= 1000 ? rawCost / 25000 : rawCost;
-      const cat = (item.poi?.category || "")
-        .toLowerCase()
-        .replace(/^(amenity=|tourism=|historic=|leisure=)/, "")
-        .trim();
-
-      if (DINING_CATEGORIES.has(cat)) {
-        diningCostMinUsd += costUsd;
-        diningCostMaxUsd += costUsd * 1.6;
-      } else {
-        ticketCostUsd += costUsd;
-      }
-
-      if (item.travel_distance_meters) {
-        rawMeters += item.travel_distance_meters;
-      }
-    });
-
-    let totalKm = calculatePolylineDistanceKm(currentDay.route_geometry);
-    if (totalKm <= 0 && currentDay.items.length > 1) {
-      for (let i = 1; i < currentDay.items.length; i++) {
-        const prev = currentDay.items[i - 1]?.poi;
-        const curr = currentDay.items[i]?.poi;
-        if (prev?.latitude && prev?.longitude && curr?.latitude && curr?.longitude) {
-          totalKm += calculateRoadDistanceKm(prev.latitude, prev.longitude, curr.latitude, curr.longitude);
-        } else if (currentDay.items[i]?.travel_time_to_prev_minutes) {
-          totalKm += (currentDay.items[i].travel_time_to_prev_minutes || 10) * 0.4;
-        }
-      }
-    }
-    if (totalKm <= 0 && rawMeters > 0) {
-      totalKm = rawMeters / 1000;
-    }
-    const numTrips = Math.max(0, currentDay.items.length - 1);
-    if (totalKm <= 0 && numTrips > 0) {
-      totalKm = numTrips * 3.5;
-    }
-
-    const transitCostVnd = numTrips > 0 ? Math.round((numTrips * 15000 + totalKm * 11000) / 1000) * 1000 : 0;
-    const transitCostUsd = transitCostVnd / 25000;
-
-    const totalMinUsd = ticketCostUsd + diningCostMinUsd + transitCostUsd;
-    const totalMaxUsd = ticketCostUsd + diningCostMaxUsd + transitCostUsd * 1.15;
-
-    return {
-      ticketCostVnd: Math.round((ticketCostUsd * 25000) / 1000) * 1000,
-      diningCostMinVnd: Math.round((diningCostMinUsd * 25000) / 1000) * 1000,
-      diningCostMaxVnd: Math.round((diningCostMaxUsd * 25000) / 1000) * 1000,
-      transitCostVnd,
-      totalKm,
-      totalMinVnd: Math.round((totalMinUsd * 25000) / 1000) * 1000,
-      totalMaxVnd: Math.round((totalMaxUsd * 25000) / 1000) * 1000,
-    };
+    return calculateDayCostSummary(currentDay);
   }, [currentDay]);
 
   const handleCopyLink = () => {
@@ -282,96 +222,10 @@ export default function SharedTripPage() {
         </div>
 
         {/* Day Budget Breakdown Widget */}
-        {dayCostSummary && (
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-xs">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-                  <Wallet className="w-4 h-4" />
-                </div>
-                <div>
-                  <h4 className="text-xs font-extrabold text-slate-900 dark:text-slate-100">
-                    {t("Dự toán chi tiêu minh bạch", "Transparent Day Budget")} — {t("Ngày", "Day")} {currentDay?.day_number || 1}
-                  </h4>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                    {t("Phân bổ chi tiết vé tham quan, ăn uống và cước di chuyển ước tính.", "Breakdown of tickets, dining, and estimated transit.")}
-                  </p>
-                </div>
-              </div>
-
-              <div className="text-right">
-                <span className="text-[10px] uppercase font-bold text-slate-400 block">{t("Tổng ước tính ngày", "Est. Day Total")}</span>
-                <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">
-                  {formatMoney(dayCostSummary.totalMinVnd)}
-                  {dayCostSummary.totalMaxVnd > dayCostSummary.totalMinVnd && ` – ${formatMoney(dayCostSummary.totalMaxVnd)}`}
-                </span>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
-              {/* 1. Ticket */}
-              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/60 flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
-                  <Ticket className="w-4 h-4" />
-                </div>
-                <div className="min-w-0">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block">
-                    {t("Vé vào cổng / Tham quan", "Admission Tickets")}
-                  </span>
-                  <p className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate mt-0.5">
-                    {dayCostSummary.ticketCostVnd > 0 ? formatMoney(dayCostSummary.ticketCostVnd) : t("Miễn phí", "Free")}
-                  </p>
-                </div>
-              </div>
-
-              {/* 2. Dining */}
-              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/60 flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
-                  <Utensils className="w-4 h-4" />
-                </div>
-                <div className="min-w-0">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block">
-                    {t("Ăn uống & Cà phê", "Dining & Cafe")}
-                  </span>
-                  <p className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate mt-0.5">
-                    {dayCostSummary.diningCostMinVnd > 0 ? (
-                      <>
-                        <span className="text-[11px] font-normal text-slate-500">{t("Từ", "From")} </span>
-                        {formatMoney(dayCostSummary.diningCostMinVnd)} – {formatMoney(dayCostSummary.diningCostMaxVnd)}
-                      </>
-                    ) : (
-                      t("Tự túc / Không có", "None scheduled")
-                    )}
-                  </p>
-                </div>
-              </div>
-
-              {/* 3. Transit */}
-              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/60 flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
-                  <Car className="w-4 h-4" />
-                </div>
-                <div className="min-w-0">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block">
-                    {t("Cước di chuyển ước tính", "Est. Transit Fare")}
-                  </span>
-                  <p className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate mt-0.5">
-                    {dayCostSummary.transitCostVnd > 0 ? (
-                      <>
-                        {formatMoney(dayCostSummary.transitCostVnd)}
-                        <span className="text-[10px] font-normal text-slate-400 ml-1">
-                          (~{dayCostSummary.totalKm.toFixed(1)} km)
-                        </span>
-                      </>
-                    ) : (
-                      t("0 ₫ (Tại chỗ)", "0 ₫ (On site)")
-                    )}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        <DayBudgetWidget
+          dayNumber={currentDay?.day_number || 1}
+          summary={dayCostSummary}
+        />
 
         {/* Split View Container: Timeline (Left) & Map (Right) */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
@@ -454,3 +308,4 @@ export default function SharedTripPage() {
     </div>
   );
 }
+
