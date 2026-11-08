@@ -8,6 +8,8 @@ from app.services.optimizer import schedule_multi_day_trip
 from app.services.routing import get_route_geometry
 from app.services.benchmark import benchmark_greedy_vs_ortools
 from app.services.replanner import replan_trip_itinerary
+from app.services.fallback_store import get_curated_pois_for_city, save_fallback_trip, get_fallback_trip
+import uuid
 
 router = APIRouter(prefix="/trips", tags=["Trips"])
 
@@ -72,28 +74,29 @@ def plan_trip_with_ai_and_optimizer(payload: PlanTripRequest):
     target_city = intent.get("city") or payload.city or "Hội An"
     num_days = max(1, min(int(intent.get("num_days", 2)), 7))
 
-    # Step 2: Fetch POIs for this city from Supabase
+    # Step 2: Fetch POIs for this city from Supabase (or fallback if DB unreachable)
+    pois = []
     try:
         db_res = client.table("pois").select("*").eq("city", target_city).execute()
         raw_pois = db_res.data or []
+        if not raw_pois:
+            db_res = client.table("pois").select("*").limit(25).execute()
+            raw_pois = db_res.data or []
+
+        for row in raw_pois:
+            lat_lon = parse_wkb_point(row.get("location"))
+            lat, lon = lat_lon if lat_lon else (15.8800, 108.3300)
+            pois.append({
+                **row,
+                "latitude": lat,
+                "longitude": lon
+            })
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Lỗi truy vấn Database POI: {str(e)}")
+        print(f"Warning: Database POI query failed, using curated POIs: {e}")
+        pois = get_curated_pois_for_city(target_city)
 
-    if not raw_pois:
-        # Fallback to any POIs
-        db_res = client.table("pois").select("*").limit(25).execute()
-        raw_pois = db_res.data or []
-
-    # Decode PostGIS coordinates
-    pois = []
-    for row in raw_pois:
-        lat_lon = parse_wkb_point(row.get("location"))
-        lat, lon = lat_lon if lat_lon else (15.8800, 108.3300)
-        pois.append({
-            **row,
-            "latitude": lat,
-            "longitude": lon
-        })
+    if not pois:
+        pois = get_curated_pois_for_city(target_city)
 
     # Step 3: AI POI Scoring
     try:
@@ -123,7 +126,7 @@ def plan_trip_with_ai_and_optimizer(payload: PlanTripRequest):
         else:
             day["route_geometry"] = [[lat, lon] for lat, lon in day_coords]
 
-    # Step 6: Save Trip, Days, and Items into Supabase
+    # Step 6: Save Trip, Days, and Items into Supabase (with fallback store)
     trip_id = None
     try:
         trip_record = {
@@ -166,6 +169,18 @@ def plan_trip_with_ai_and_optimizer(payload: PlanTripRequest):
                         client.table("itinerary_items").insert(items_to_insert).execute()
     except Exception as e:
         print(f"Warning: Could not save complete itinerary to Supabase: {e}")
+        # Generate persistent fallback UUID and cache in memory
+        if not trip_id:
+            trip_id = str(uuid.uuid4())
+            save_fallback_trip(trip_id, {
+                "id": trip_id,
+                "title": f"Chuyến đi {target_city} ({num_days} ngày)",
+                "city": target_city,
+                "budget_usd": intent.get("budget_usd", 100),
+                "preferences": intent,
+                "status": "planned",
+                "days": scheduled_days
+            })
 
     return PlanTripResponse(
         trip_id=str(trip_id) if trip_id else None,
@@ -185,6 +200,10 @@ def get_trip_detail(trip_id: str):
     try:
         trip_res = client.table("trips").select("*").eq("id", trip_id).execute()
         if not trip_res.data:
+            # Check fallback memory store
+            fallback = get_fallback_trip(trip_id)
+            if fallback:
+                return fallback
             raise HTTPException(status_code=404, detail="Không tìm thấy chuyến đi.")
         trip = trip_res.data[0]
 
@@ -226,8 +245,14 @@ def get_trip_detail(trip_id: str):
         trip["days"] = days
         return trip
     except HTTPException:
+        fallback = get_fallback_trip(trip_id)
+        if fallback:
+            return fallback
         raise
     except Exception as e:
+        fallback = get_fallback_trip(trip_id)
+        if fallback:
+            return fallback
         raise HTTPException(status_code=500, detail=f"Lỗi truy vấn chuyến đi: {str(e)}")
 
 @router.get("/benchmark/compare")
@@ -236,20 +261,28 @@ def compare_optimization_algorithms(city: str = "Hội An", num_days: int = 2):
     Sprint 5 Deliverable: Benchmark Greedy Baseline vs Google OR-Tools TSPTW + K-Means
     """
     client = get_supabase_client()
+    raw_pois = []
     try:
         db_res = client.table("pois").select("*").eq("city", city).execute()
         raw_pois = db_res.data or []
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Lỗi truy vấn POI: {str(e)}")
+    except Exception:
+        pass
 
     if not raw_pois:
-        db_res = client.table("pois").select("*").limit(20).execute()
-        raw_pois = db_res.data or []
+        try:
+            db_res = client.table("pois").select("*").limit(20).execute()
+            raw_pois = db_res.data or []
+        except Exception:
+            pass
+
+    if not raw_pois:
+        raw_pois = get_curated_pois_for_city(city)
 
     pois = []
     for row in raw_pois:
-        lat_lon = parse_wkb_point(row.get("location"))
-        lat, lon = lat_lon if lat_lon else (15.8800, 108.3300)
+        lat_lon = parse_wkb_point(row.get("location")) if row.get("location") else None
+        lat = row.get("latitude") or (lat_lon[0] if lat_lon else 15.8800)
+        lon = row.get("longitude") or (lat_lon[1] if lat_lon else 108.3300)
         pois.append({
             **row,
             "latitude": lat,
@@ -271,23 +304,31 @@ def replan_existing_trip(trip_id: str, payload: ReplanTripRequest):
     """
     Sprint 6: Dynamic Real-time Re-planning Endpoint
     Triggers adaptive itinerary adjustment on weather, closure, or traffic delays.
-    Updates database and logs the replanning event.
+    Updates database and logs the replanning event (or updates in-memory fallback store).
     """
     client = get_supabase_client()
+    fallback_trip = get_fallback_trip(trip_id)
+    trip = None
+    existing_days = []
+
     try:
-        # 1. Fetch trip and existing days
         trip_res = client.table("trips").select("*").eq("id", trip_id).single().execute()
         trip = trip_res.data
-        if not trip:
-            raise HTTPException(status_code=404, detail="Chuyến đi không tồn tại")
+    except Exception:
+        trip = None
 
-        target_city = trip.get("city", "Hội An")
+    if not trip and fallback_trip:
+        trip = fallback_trip
 
-        # 2. Get existing full itinerary
+    if not trip:
+        raise HTTPException(status_code=404, detail="Chuyến đi không tồn tại")
+
+    target_city = trip.get("city", "Hội An")
+
+    # 2. Get existing full itinerary
+    try:
         days_res = client.table("itinerary_days").select("*, itinerary_items(*, pois(*))").eq("trip_id", trip_id).order("day_number").execute()
         existing_days_raw = days_res.data or []
-
-        existing_days = []
         for day_row in existing_days_raw:
             sorted_items_raw = sorted(day_row.get("itinerary_items", []), key=lambda x: x.get("visit_order", 0))
             items = []
@@ -311,45 +352,59 @@ def replan_existing_trip(trip_id: str, payload: ReplanTripRequest):
                 "day_number": day_row["day_number"],
                 "items": items
             })
+    except Exception:
+        existing_days = []
 
-        # 3. Fetch candidate POIs for replacement
+    if not existing_days and fallback_trip:
+        existing_days = fallback_trip.get("days", [])
+
+    # 3. Fetch candidate POIs for replacement
+    raw_pois = []
+    try:
         pois_res = client.table("pois").select("*").eq("city", target_city).execute()
         raw_pois = pois_res.data or []
-        all_candidate_pois = []
-        for row in raw_pois:
-            lat_lon = parse_wkb_point(row.get("location")) if row.get("location") else None
-            lat, lon = lat_lon if lat_lon else (15.8800, 108.3300)
-            all_candidate_pois.append({
-                **row,
-                "latitude": lat,
-                "longitude": lon,
-                "ai_score": (row.get("rating") or 4.5) * 2
-            })
+    except Exception:
+        raw_pois = []
 
-        # 4. Run Replanner Engine
-        city_center = (all_candidate_pois[0]["latitude"], all_candidate_pois[0]["longitude"]) if all_candidate_pois else (15.8800, 108.3300)
-        replan_result = replan_trip_itinerary(
-            current_days=existing_days,
-            all_candidate_pois=all_candidate_pois,
-            trigger_type=payload.trigger_type,
-            target_day_number=payload.day_number or 1,
-            closed_poi_id=payload.closed_poi_id,
-            delay_minutes=payload.delay_minutes or 45,
-            city_center=city_center
-        )
+    if not raw_pois:
+        raw_pois = get_curated_pois_for_city(target_city)
 
-        updated_days = replan_result["days"]
+    all_candidate_pois = []
+    for row in raw_pois:
+        lat_lon = parse_wkb_point(row.get("location")) if row.get("location") else None
+        lat = row.get("latitude") or (lat_lon[0] if lat_lon else 15.8800)
+        lon = row.get("longitude") or (lat_lon[1] if lat_lon else 108.3300)
+        all_candidate_pois.append({
+            **row,
+            "latitude": lat,
+            "longitude": lon,
+            "ai_score": (row.get("rating") or 4.5) * 2
+        })
 
-        # 5. Update itinerary_items in database
+    # 4. Run Replanner Engine
+    city_center = (all_candidate_pois[0]["latitude"], all_candidate_pois[0]["longitude"]) if all_candidate_pois else (15.8800, 108.3300)
+    replan_result = replan_trip_itinerary(
+        current_days=existing_days,
+        all_candidate_pois=all_candidate_pois,
+        trigger_type=payload.trigger_type,
+        target_day_number=payload.day_number or 1,
+        closed_poi_id=payload.closed_poi_id,
+        delay_minutes=payload.delay_minutes or 45,
+        city_center=city_center
+    )
+
+    updated_days = replan_result["days"]
+
+    # 5. Update itinerary_items in database (or fallback store)
+    db_updated = False
+    try:
         for day in updated_days:
             day_id = day.get("id")
             if not day_id:
-                # Find day_id from existing
                 match_d = next((d for d in existing_days if d["day_number"] == day["day_number"]), None)
                 day_id = match_d["id"] if match_d else None
 
             if day_id:
-                # Delete existing items of that day and insert updated items
                 client.table("itinerary_items").delete().eq("day_id", day_id).execute()
                 new_items_records = [
                     {
@@ -365,8 +420,17 @@ def replan_existing_trip(trip_id: str, payload: ReplanTripRequest):
                 ]
                 if new_items_records:
                     client.table("itinerary_items").insert(new_items_records).execute()
+        db_updated = True
+    except Exception:
+        db_updated = False
 
-        # 6. Log replanning event in replanning_events table
+    # Always keep fallback store synchronized
+    if fallback_trip:
+        fallback_trip["days"] = updated_days
+        save_fallback_trip(trip_id, fallback_trip)
+
+    # 6. Log replanning event in replanning_events table
+    if db_updated:
         try:
             event_record = {
                 "trip_id": trip_id,
@@ -379,18 +443,13 @@ def replan_existing_trip(trip_id: str, payload: ReplanTripRequest):
         except Exception:
             pass
 
-        return {
-            "status": "success",
-            "trip_id": trip_id,
-            "trigger_type": payload.trigger_type,
-            "explanation": replan_result["explanation"],
-            "affected_pois": replan_result["affected_pois"],
-            "days": updated_days
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Lỗi khi tái lập lịch trình: {str(e)}")
+    return {
+        "status": "success",
+        "trip_id": trip_id,
+        "trigger_type": payload.trigger_type,
+        "explanation": replan_result["explanation"],
+        "affected_pois": replan_result["affected_pois"],
+        "days": updated_days
+    }
 
 

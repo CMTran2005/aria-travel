@@ -14,11 +14,12 @@ def get_llm():
     primary_llm = None
     if settings.GROQ_API_KEY:
         try:
-            # High-performance 120B reasoning model available on user's Groq tier
             primary_llm = ChatGroq(
                 model="openai/gpt-oss-120b",
                 temperature=0.2,
                 api_key=settings.GROQ_API_KEY,
+                timeout=5.0,
+                max_retries=1
             )
         except Exception:
             pass
@@ -29,6 +30,8 @@ def get_llm():
             model="meta-llama/llama-3.1-8b-instruct:free",
             api_key=settings.OPENROUTER_API_KEY,
             temperature=0.2,
+            timeout=5.0,
+            max_retries=1
         )
         if primary_llm:
             return primary_llm.with_fallbacks([fallback_llm])
@@ -42,10 +45,23 @@ def get_llm():
 def extract_user_intent(user_input: str) -> Dict[str, Any]:
     """
     Extract structured travel intent from natural language using AI.
+    Falls back gracefully if AI service or network is unavailable.
     """
-    llm = get_llm()
+    default_fallback = {
+        "city": "Hội An",
+        "num_days": 2,
+        "budget_usd": 60,
+        "travel_style": ["food", "cultural"],
+        "group_type": "couple",
+        "must_visit": [],
+        "avoid": [],
+        "summary": user_input[:120] if user_input else "Kế hoạch khám phá Hội An"
+    }
 
-    system_prompt = """Bạn là trợ lý lập kế hoạch du lịch thông minh ARIA.
+    try:
+        llm = get_llm()
+
+        system_prompt = """Bạn là trợ lý lập kế hoạch du lịch thông minh ARIA.
 Phân tích yêu cầu của người dùng và trả về DUY NHẤT một chuỗi JSON hợp lệ theo cấu trúc sau:
 {
   "city": "Hội An",
@@ -59,57 +75,59 @@ Phân tích yêu cầu của người dùng và trả về DUY NHẤT một chu�
 }
 Lưu ý: Chỉ trả về JSON thuần túy, không bọc trong markdown codeblock, không thêm bất kỳ văn bản giải thích nào khác."""
 
-    messages = [
-        SystemMessage(content=system_prompt),
-        HumanMessage(content=f'Yêu cầu của người dùng: "{user_input}"')
-    ]
+        messages = [
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=f'Yêu cầu của người dùng: "{user_input}"')
+        ]
 
-    response = llm.invoke(messages)
-    raw_content = response.content.strip()
+        response = llm.invoke(messages)
+        raw_content = response.content.strip()
 
-    # Clean markdown formatting if present
-    if raw_content.startswith("```json"):
-        raw_content = raw_content[7:]
-    elif raw_content.startswith("```"):
-        raw_content = raw_content[3:]
-    if raw_content.endswith("```"):
-        raw_content = raw_content[:-3]
-    raw_content = raw_content.strip()
+        # Clean markdown formatting if present
+        if raw_content.startswith("```json"):
+            raw_content = raw_content[7:]
+        elif raw_content.startswith("```"):
+            raw_content = raw_content[3:]
+        if raw_content.endswith("```"):
+            raw_content = raw_content[:-3]
+        raw_content = raw_content.strip()
 
-    try:
-        return json.loads(raw_content)
+        try:
+            parsed = json.loads(raw_content)
+            # Ensure essential keys exist
+            if not parsed.get("city"):
+                parsed["city"] = "Hội An"
+            if not parsed.get("num_days"):
+                parsed["num_days"] = 2
+            return parsed
+        except Exception:
+            return default_fallback
     except Exception:
-        # Graceful fallback
-        return {
-            "city": "Hội An",
-            "num_days": 2,
-            "budget_usd": 60,
-            "travel_style": ["food", "cultural"],
-            "group_type": "couple",
-            "must_visit": [],
-            "avoid": [],
-            "summary": user_input[:120]
-        }
+        # LLM / Network failure fallback
+        return default_fallback
 
 def score_pois_with_ai(pois: List[Dict[str, Any]], intent: Dict[str, Any]) -> List[Dict[str, Any]]:
     """
     Score POIs (0 to 10) based on how well they match user intent.
+    Falls back to ratings-based scoring if LLM is unavailable.
     """
-    llm = get_llm()
+    scores_map = {}
+    try:
+        llm = get_llm()
 
-    poi_summaries = [
-        {
-            "id": p["id"],
-            "name": p["name"],
-            "category": p.get("category", ""),
-            "tags": p.get("tags", []),
-            "avg_cost_usd": p.get("avg_cost_usd", 0),
-            "rating": p.get("rating", 4.5)
-        }
-        for p in pois
-    ]
+        poi_summaries = [
+            {
+                "id": p["id"],
+                "name": p["name"],
+                "category": p.get("category", ""),
+                "tags": p.get("tags", []),
+                "avg_cost_usd": p.get("avg_cost_usd", 0),
+                "rating": p.get("rating", 4.5)
+            }
+            for p in pois
+        ]
 
-    prompt = f"""Người dùng muốn đi du lịch {intent.get('city', 'Hội An')}.
+        prompt = f"""Người dùng muốn đi du lịch {intent.get('city', 'Hội An')}.
 - Phong cách mong muốn: {intent.get('travel_style', [])}
 - Nhóm: {intent.get('group_type', 'solo')}
 - Ngân sách: ~${intent.get('budget_usd', 50)}
@@ -127,32 +145,33 @@ Trả về DUY NHẤT một mảng JSON thuần theo mẫu:
 ]
 Không trả về văn bản nào khác ngoài JSON."""
 
-    response = llm.invoke([HumanMessage(content=prompt)])
-    raw_content = response.content.strip()
+        response = llm.invoke([HumanMessage(content=prompt)])
+        raw_content = response.content.strip()
 
-    if raw_content.startswith("```json"):
-        raw_content = raw_content[7:]
-    elif raw_content.startswith("```"):
-        raw_content = raw_content[3:]
-    if raw_content.endswith("```"):
-        raw_content = raw_content[:-3]
-    raw_content = raw_content.strip()
+        if raw_content.startswith("```json"):
+            raw_content = raw_content[7:]
+        elif raw_content.startswith("```"):
+            raw_content = raw_content[3:]
+        if raw_content.endswith("```"):
+            raw_content = raw_content[:-3]
+        raw_content = raw_content.strip()
 
-    try:
         scored_list = json.loads(raw_content)
         scores_map = {item["id"]: item for item in scored_list if "id" in item}
     except Exception:
+        # Graceful fallback: derive score from POI rating
         scores_map = {}
 
     # Merge scores back into POI objects
     results = []
     for p in pois:
         match = scores_map.get(p["id"])
-        score = match.get("score", 7.0) if match else 7.0
-        reason = match.get("reason", "Địa điểm nổi tiếng được nhiều du khách yêu thích") if match else "Địa điểm nổi bật"
+        rating_score = min(10.0, float(p.get("rating") or 4.5) * 2.0)
+        score = match.get("score", rating_score) if match else rating_score
+        reason = match.get("reason", "Địa điểm nổi tiếng phù hợp với hành trình") if match else "Địa điểm nổi tiếng được nhiều du khách yêu thích"
         results.append({
             **p,
-            "ai_score": score,
+            "ai_score": round(score, 1),
             "ai_reason": reason
         })
 
