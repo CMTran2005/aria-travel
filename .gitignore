@@ -19,6 +19,8 @@ frontend/.env.local
 out/
 build/
 dist/
+*.tsbuildinfo
+tsconfig.tsbuildinfo
 
 # Logs
 *.log

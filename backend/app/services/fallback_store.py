@@ -3,7 +3,14 @@ import json
 import uuid
 from pathlib import Path
 from typing import Dict, Any, List, Optional
-from app.services.osm_fetcher import CURATED_HOI_AN_POIS, CURATED_DALAT_POIS, CURATED_DANANG_POIS
+from app.services.osm_fetcher import (
+    CURATED_HOI_AN_POIS,
+    CURATED_DALAT_POIS,
+    CURATED_DANANG_POIS,
+    CURATED_HANOI_POIS,
+    CURATED_HCMC_POIS,
+    CURATED_HUE_POIS
+)
 
 # Local JSON storage directory for offline persistent trips
 DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "fallback_trips"
@@ -56,7 +63,14 @@ def get_fallback_trip(trip_id: str) -> Optional[Dict[str, Any]]:
     return None
 
 def get_curated_pois_for_city(city: Optional[str]) -> List[Dict[str, Any]]:
-    all_curated = list(CURATED_HOI_AN_POIS) + list(CURATED_DALAT_POIS) + list(CURATED_DANANG_POIS)
+    all_curated = (
+        list(CURATED_HOI_AN_POIS) +
+        list(CURATED_DALAT_POIS) +
+        list(CURATED_DANANG_POIS) +
+        list(CURATED_HANOI_POIS) +
+        list(CURATED_HCMC_POIS) +
+        list(CURATED_HUE_POIS)
+    )
     target = (city or "").strip().lower()
     matched = []
     for idx, p in enumerate(all_curated):

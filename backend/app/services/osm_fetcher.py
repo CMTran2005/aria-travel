@@ -6,7 +6,271 @@ CITY_BOUNDS = {
     "Hội An": {"lat": 15.8800, "lon": 108.3300, "bbox": "15.85,108.30,15.91,108.37"},
     "Đà Lạt": {"lat": 11.9404, "lon": 108.4583, "bbox": "11.91,108.40,11.97,108.47"},
     "Đà Nẵng": {"lat": 16.0544, "lon": 108.2022, "bbox": "15.95,108.15,16.15,108.30"},
+    "Hà Nội": {"lat": 21.0285, "lon": 105.8542, "bbox": "20.95,105.75,21.10,105.95"},
+    "TP. Hồ Chí Minh": {"lat": 10.7769, "lon": 106.7009, "bbox": "10.70,106.60,10.85,106.75"},
+    "Huế": {"lat": 16.4637, "lon": 107.5909, "bbox": "16.42,107.54,16.50,107.64"},
 }
+
+CURATED_HANOI_POIS = [
+    {
+        "external_id": "manual_hn_01",
+        "name": "Hồ Hoàn Kiếm & Đền Ngọc Sơn",
+        "category": "tourism",
+        "city": "Hà Nội",
+        "address": "Đinh Tiên Hoàng, Hàng Trống, Hoàn Kiếm",
+        "latitude": 21.0307,
+        "longitude": 105.8524,
+        "avg_duration_minutes": 60,
+        "avg_cost_usd": 1.5,
+        "rating": 4.8,
+        "tags": ["historic", "lake", "iconic", "walking"],
+        "source": "curated"
+    },
+    {
+        "external_id": "manual_hn_02",
+        "name": "Văn Miếu - Quốc Tử Giám",
+        "category": "tourism",
+        "city": "Hà Nội",
+        "address": "58 Quốc Tử Giám, Văn Miếu, Đống Đa",
+        "latitude": 21.0294,
+        "longitude": 105.8360,
+        "avg_duration_minutes": 75,
+        "avg_cost_usd": 3.0,
+        "rating": 4.7,
+        "tags": ["culture", "heritage", "education", "historic"],
+        "source": "curated"
+    },
+    {
+        "external_id": "manual_hn_03",
+        "name": "Lăng Chủ tịch Hồ Chí Minh",
+        "category": "tourism",
+        "city": "Hà Nội",
+        "address": "2 Hùng Vương, Điện Biên, Ba Đình",
+        "latitude": 21.0368,
+        "longitude": 105.8346,
+        "avg_duration_minutes": 90,
+        "avg_cost_usd": 0.0,
+        "rating": 4.9,
+        "tags": ["monument", "historic", "national"],
+        "source": "curated"
+    },
+    {
+        "external_id": "manual_hn_04",
+        "name": "Nhà thờ Lớn Hà Nội (St. Joseph)",
+        "category": "tourism",
+        "city": "Hà Nội",
+        "address": "40 Nhà Chung, Hàng Trống, Hoàn Kiếm",
+        "latitude": 21.0288,
+        "longitude": 105.8495,
+        "avg_duration_minutes": 45,
+        "avg_cost_usd": 0.0,
+        "rating": 4.6,
+        "tags": ["architecture", "church", "photo", "cafe"],
+        "source": "curated"
+    },
+    {
+        "external_id": "manual_hn_05",
+        "name": "Chợ Đồng Xuân & Phố Cổ 36 Phố Phường",
+        "category": "amenity=marketplace",
+        "city": "Hà Nội",
+        "address": "Đồng Xuân, Hoàn Kiếm",
+        "latitude": 21.0378,
+        "longitude": 105.8498,
+        "avg_duration_minutes": 90,
+        "avg_cost_usd": 4.0,
+        "rating": 4.5,
+        "tags": ["market", "street_food", "shopping", "historic"],
+        "source": "curated"
+    },
+    {
+        "external_id": "manual_hn_06",
+        "name": "Phở Bát Đàn",
+        "category": "amenity=restaurant",
+        "city": "Hà Nội",
+        "address": "49 Bát Đàn, Cửa Đông, Hoàn Kiếm",
+        "latitude": 21.0335,
+        "longitude": 105.8475,
+        "avg_duration_minutes": 40,
+        "avg_cost_usd": 2.5,
+        "rating": 4.6,
+        "tags": ["food", "pho", "traditional", "michelin"],
+        "source": "curated"
+    },
+    {
+        "external_id": "manual_hn_07",
+        "name": "Cafe Giảng (Cà phê trứng)",
+        "category": "amenity=cafe",
+        "city": "Hà Nội",
+        "address": "39 Nguyễn Hữu Huân, Lý Thái Tổ, Hoàn Kiếm",
+        "latitude": 21.0343,
+        "longitude": 105.8551,
+        "avg_duration_minutes": 50,
+        "avg_cost_usd": 1.5,
+        "rating": 4.7,
+        "tags": ["cafe", "egg_coffee", "specialty", "historic"],
+        "source": "curated"
+    }
+]
+
+CURATED_HCMC_POIS = [
+    {
+        "external_id": "manual_hcm_01",
+        "name": "Dinh Độc Lập (Hội trường Thống Nhất)",
+        "category": "tourism",
+        "city": "TP. Hồ Chí Minh",
+        "address": "135 Nam Kỳ Khởi Nghĩa, Bến Thành, Quận 1",
+        "latitude": 10.7770,
+        "longitude": 106.6953,
+        "avg_duration_minutes": 90,
+        "avg_cost_usd": 2.5,
+        "rating": 4.7,
+        "tags": ["historic", "heritage", "museum", "architecture"],
+        "source": "curated"
+    },
+    {
+        "external_id": "manual_hcm_02",
+        "name": "Bưu điện Trung tâm Sài Gòn",
+        "category": "tourism",
+        "city": "TP. Hồ Chí Minh",
+        "address": "02 Công xã Paris, Bến Nghé, Quận 1",
+        "latitude": 10.7798,
+        "longitude": 106.6998,
+        "avg_duration_minutes": 45,
+        "avg_cost_usd": 0.0,
+        "rating": 4.6,
+        "tags": ["french_architecture", "photo", "historic"],
+        "source": "curated"
+    },
+    {
+        "external_id": "manual_hcm_03",
+        "name": "Chợ Bến Thành",
+        "category": "amenity=marketplace",
+        "city": "TP. Hồ Chí Minh",
+        "address": "Đường Lê Lợi, Phường Bến Thành, Quận 1",
+        "latitude": 10.7725,
+        "longitude": 106.6980,
+        "avg_duration_minutes": 75,
+        "avg_cost_usd": 5.0,
+        "rating": 4.4,
+        "tags": ["market", "souvenirs", "street_food", "landmark"],
+        "source": "curated"
+    },
+    {
+        "external_id": "manual_hcm_04",
+        "name": "Bảo tàng Chứng tích Chiến tranh",
+        "category": "tourism",
+        "city": "TP. Hồ Chí Minh",
+        "address": "28 Võ Văn Tần, Phường 6, Quận 3",
+        "latitude": 10.7795,
+        "longitude": 106.6921,
+        "avg_duration_minutes": 90,
+        "avg_cost_usd": 2.0,
+        "rating": 4.8,
+        "tags": ["museum", "history", "exhibition"],
+        "source": "curated"
+    },
+    {
+        "external_id": "manual_hcm_05",
+        "name": "Phố đi bộ Nguyễn Huệ & Trụ sở UBND TP",
+        "category": "tourism",
+        "city": "TP. Hồ Chí Minh",
+        "address": "Đường Nguyễn Huệ, Bến Nghé, Quận 1",
+        "latitude": 10.7739,
+        "longitude": 106.7032,
+        "avg_duration_minutes": 60,
+        "avg_cost_usd": 0.0,
+        "rating": 4.7,
+        "tags": ["walking_street", "nightlife", "photo", "square"],
+        "source": "curated"
+    },
+    {
+        "external_id": "manual_hcm_06",
+        "name": "Cơm Tấm Ba Ghiền",
+        "category": "amenity=restaurant",
+        "city": "TP. Hồ Chí Minh",
+        "address": "84 Đặng Văn Ngữ, Phường 10, Phú Nhuận",
+        "latitude": 10.7933,
+        "longitude": 106.6711,
+        "avg_duration_minutes": 45,
+        "avg_cost_usd": 4.0,
+        "rating": 4.6,
+        "tags": ["food", "broken_rice", "michelin", "specialty"],
+        "source": "curated"
+    }
+]
+
+CURATED_HUE_POIS = [
+    {
+        "external_id": "manual_hue_01",
+        "name": "Đại Nội Huế (Hoàng Thành Huế)",
+        "category": "tourism",
+        "city": "Huế",
+        "address": "Đường 23 Tháng 8, Thuận Hòa, TP. Huế",
+        "latitude": 16.4697,
+        "longitude": 107.5794,
+        "avg_duration_minutes": 150,
+        "avg_cost_usd": 8.0,
+        "rating": 4.8,
+        "tags": ["unesco", "palace", "history", "imperial"],
+        "source": "curated"
+    },
+    {
+        "external_id": "manual_hue_02",
+        "name": "Chùa Thiên Mụ",
+        "category": "tourism",
+        "city": "Huế",
+        "address": "Đường Kim Long, Hương Long, TP. Huế",
+        "latitude": 16.4528,
+        "longitude": 107.5451,
+        "avg_duration_minutes": 60,
+        "avg_cost_usd": 0.0,
+        "rating": 4.7,
+        "tags": ["pagoda", "river_view", "spiritual", "historic"],
+        "source": "curated"
+    },
+    {
+        "external_id": "manual_hue_03",
+        "name": "Lăng Khải Định",
+        "category": "tourism",
+        "city": "Huế",
+        "address": "Xã Thủy Bằng, TP. Huế",
+        "latitude": 16.3989,
+        "longitude": 107.5905,
+        "avg_duration_minutes": 80,
+        "avg_cost_usd": 6.0,
+        "rating": 4.7,
+        "tags": ["tomb", "architecture", "mosaic", "heritage"],
+        "source": "curated"
+    },
+    {
+        "external_id": "manual_hue_04",
+        "name": "Chợ Đông Ba",
+        "category": "amenity=marketplace",
+        "city": "Huế",
+        "address": "2 Trần Hưng Đạo, Phú Hòa, TP. Huế",
+        "latitude": 16.4678,
+        "longitude": 107.5936,
+        "avg_duration_minutes": 75,
+        "avg_cost_usd": 3.0,
+        "rating": 4.4,
+        "tags": ["market", "street_food", "souvenirs", "local"],
+        "source": "curated"
+    },
+    {
+        "external_id": "manual_hue_05",
+        "name": "Bún Bò Huế Mụ Rơi",
+        "category": "amenity=restaurant",
+        "city": "Huế",
+        "address": "40 Nguyễn Chí Diểu, Thuận Thành, TP. Huế",
+        "latitude": 16.4714,
+        "longitude": 107.5855,
+        "avg_duration_minutes": 40,
+        "avg_cost_usd": 2.0,
+        "rating": 4.6,
+        "tags": ["food", "bun_bo_hue", "local_cuisine"],
+        "source": "curated"
+    }
+]
 
 CURATED_DALAT_POIS = [
     {
@@ -447,6 +711,12 @@ def fetch_pois_osm(city: str = "Hội An", category: str = "tourism") -> List[Di
         return CURATED_DALAT_POIS
     if city == "Đà Nẵng":
         return CURATED_DANANG_POIS
+    if city == "Hà Nội":
+        return CURATED_HANOI_POIS
+    if city in ("TP. Hồ Chí Minh", "TP Hồ Chí Minh", "Sài Gòn", "Ho Chi Minh"):
+        return CURATED_HCMC_POIS
+    if city == "Huế":
+        return CURATED_HUE_POIS
         
     return []
 
