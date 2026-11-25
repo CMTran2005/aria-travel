@@ -126,6 +126,9 @@ export default function MapView({
   const [tempCoords, setTempCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [saveSuccessNotice, setSaveSuccessNotice] = useState<string>("");
 
+  // Map lưu vị trí cục bộ của các marker đã bị kéo trong phiên làm việc
+  const [movedMarkers, setMovedMarkers] = useState<Record<number, [number, number]>>({});
+
   useEffect(() => {
     setMounted(true);
     import("leaflet").then((L) => {
@@ -250,23 +253,27 @@ export default function MapView({
 
         {pois.map((poi) => {
           const isSelected = selectedPOI?.id === poi.id;
-          const isThisBeingEdited = isEditMode && (editingPoiId === poi.id || selectedPOI?.id === poi.id);
+          const currentPosition: [number, number] = movedMarkers[poi.id] || [poi.latitude, poi.longitude];
 
           return (
             <Marker
-              key={`${poi.id}-${poi.latitude}-${poi.longitude}`}
-              position={[poi.latitude, poi.longitude]}
+              key={poi.id}
+              position={currentPosition}
               draggable={isEditMode}
               icon={createIcon(poi.category, isSelected, poi.visit_order)}
               eventHandlers={{
                 click: () => {
                   onSelectPOI && onSelectPOI(poi);
                   setEditingPoiId(poi.id);
-                  setTempCoords({ lat: poi.latitude, lng: poi.longitude });
+                  setTempCoords({ lat: currentPosition[0], lng: currentPosition[1] });
                 },
                 dragend: (e) => {
                   const marker = e.target;
                   const position = marker.getLatLng();
+                  setMovedMarkers((prev) => ({
+                    ...prev,
+                    [poi.id]: [position.lat, position.lng],
+                  }));
                   setEditingPoiId(poi.id);
                   setTempCoords({ lat: position.lat, lng: position.lng });
                   if (onSelectPOI) {
