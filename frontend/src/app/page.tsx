@@ -570,6 +570,7 @@ export default function HomePage() {
                 pois={pois}
                 selectedPOI={selectedPOI}
                 onSelectPOI={(poi) => setSelectedPOI(poi)}
+                onUpdateCoordinates={handleUpdateCoordinates}
                 center={
                   selectedPOI
                     ? [selectedPOI.latitude, selectedPOI.longitude]

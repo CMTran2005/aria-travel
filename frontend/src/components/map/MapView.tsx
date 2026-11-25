@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import dynamic from "next/dynamic";
 import "leaflet/dist/leaflet.css";
-import { Star, Clock } from "lucide-react";
+import { Star, Clock, Move, Check, Edit3, X } from "lucide-react";
 import { getCategoryLabel, formatCostVi } from "@/lib/formatters";
 import { useAppSettings } from "@/context/AppSettingsContext";
 
@@ -49,6 +49,7 @@ interface MapViewProps {
   pois: (POI & { visit_order?: number })[];
   selectedPOI?: POI | null;
   onSelectPOI?: (poi: POI) => void;
+  onUpdateCoordinates?: (poiId: number, lat: number, lng: number) => void;
   center?: [number, number];
   zoom?: number;
   routeGeometry?: [number, number][];
@@ -110,6 +111,7 @@ export default function MapView({
   pois,
   selectedPOI,
   onSelectPOI,
+  onUpdateCoordinates,
   center = [15.8775, 108.3285],
   zoom = 15,
   routeGeometry,
@@ -117,6 +119,12 @@ export default function MapView({
   const { lang, currency, t } = useAppSettings();
   const [mounted, setMounted] = useState(false);
   const [leafletLib, setLeafletLib] = useState<any>(null);
+
+  // Chế độ chỉnh sửa ghim vị trí (Kéo thả marker)
+  const [isEditMode, setIsEditMode] = useState<boolean>(false);
+  const [editingPoiId, setEditingPoiId] = useState<number | null>(null);
+  const [tempCoords, setTempCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [saveSuccessNotice, setSaveSuccessNotice] = useState<string>("");
 
   useEffect(() => {
     setMounted(true);
@@ -152,8 +160,55 @@ export default function MapView({
 
   const activeZoom = selectedPOI ? 16 : zoom;
 
+  const handleSaveCoords = (poiId: number) => {
+    if (tempCoords && onUpdateCoordinates) {
+      onUpdateCoordinates(poiId, tempCoords.lat, tempCoords.lng);
+      setSaveSuccessNotice(`Đã lưu tọa độ mới: ${tempCoords.lat.toFixed(5)}, ${tempCoords.lng.toFixed(5)}`);
+      setTimeout(() => setSaveSuccessNotice(""), 3500);
+      setEditingPoiId(null);
+      setTempCoords(null);
+    }
+  };
+
   return (
-    <div className="w-full h-full min-h-[450px] rounded-2xl overflow-hidden border border-slate-200 shadow-inner relative">
+    <div className="w-full h-full min-h-[450px] rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-inner relative">
+      {/* Floating Toolbar: Nút Bật/Tắt chế độ Chỉnh sửa tọa độ */}
+      <div className="absolute top-3 right-3 z-[1000] flex items-center gap-2">
+        {saveSuccessNotice && (
+          <div className="bg-emerald-600 text-white text-xs font-bold px-3 py-1.5 rounded-xl shadow-lg flex items-center gap-1.5 animate-in fade-in duration-200">
+            <Check className="w-3.5 h-3.5" />
+            <span>{saveSuccessNotice}</span>
+          </div>
+        )}
+
+        <button
+          type="button"
+          onClick={() => {
+            setIsEditMode((prev) => !prev);
+            setEditingPoiId(null);
+            setTempCoords(null);
+          }}
+          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold shadow-md transition ${
+            isEditMode
+              ? "bg-amber-500 hover:bg-amber-600 text-white ring-2 ring-amber-300"
+              : "bg-white/95 dark:bg-slate-900/95 hover:bg-white text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700"
+          }`}
+          title="Bật tính năng kéo ghim để chỉnh sửa vị trí trên bản đồ"
+        >
+          {isEditMode ? (
+            <>
+              <Move className="w-3.5 h-3.5 animate-bounce" />
+              <span>Đang bật kéo ghim (Click để tắt)</span>
+            </>
+          ) : (
+            <>
+              <Edit3 className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+              <span>Chỉnh sửa vị trí ghim</span>
+            </>
+          )}
+        </button>
+      </div>
+
       <MapContainer
         center={activeCenter}
         zoom={activeZoom}
@@ -195,14 +250,29 @@ export default function MapView({
 
         {pois.map((poi) => {
           const isSelected = selectedPOI?.id === poi.id;
+          const isThisBeingEdited = isEditMode && (editingPoiId === poi.id || selectedPOI?.id === poi.id);
+
           return (
             <Marker
               key={`${poi.id}-${poi.latitude}-${poi.longitude}`}
               position={[poi.latitude, poi.longitude]}
-              draggable={false}
+              draggable={isEditMode}
               icon={createIcon(poi.category, isSelected, poi.visit_order)}
               eventHandlers={{
-                click: () => onSelectPOI && onSelectPOI(poi),
+                click: () => {
+                  onSelectPOI && onSelectPOI(poi);
+                  setEditingPoiId(poi.id);
+                  setTempCoords({ lat: poi.latitude, lng: poi.longitude });
+                },
+                dragend: (e) => {
+                  const marker = e.target;
+                  const position = marker.getLatLng();
+                  setEditingPoiId(poi.id);
+                  setTempCoords({ lat: position.lat, lng: position.lng });
+                  if (onSelectPOI) {
+                    onSelectPOI({ ...poi, latitude: position.lat, longitude: position.lng });
+                  }
+                },
               }}
             >
               <Popup className="aria-poi-popup">
@@ -222,8 +292,30 @@ export default function MapView({
                     {poi.name}
                   </h4>
                   <p className="text-xs text-slate-500 mt-1 line-clamp-2">
-                    {poi.address || "Khu vực phố cổ"}
+                    {poi.address || "Khu vực địa phương"}
                   </p>
+
+                  {/* Thông tin tọa độ khi bật chỉnh sửa */}
+                  {isEditMode && tempCoords && editingPoiId === poi.id && (
+                    <div className="mt-2.5 p-2 bg-amber-50 rounded-lg border border-amber-200">
+                      <div className="text-[11px] font-bold text-amber-800 flex items-center gap-1 mb-1">
+                        <Move className="w-3 h-3 text-amber-600" />
+                        <span>Tọa độ đã kéo mới:</span>
+                      </div>
+                      <div className="text-[10px] font-mono text-amber-900 select-all">
+                        {tempCoords.lat.toFixed(6)}, {tempCoords.lng.toFixed(6)}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleSaveCoords(poi.id)}
+                        className="w-full mt-2 py-1.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-md shadow-xs transition flex items-center justify-center gap-1"
+                      >
+                        <Check className="w-3 h-3" />
+                        <span>Lưu tọa độ thực tế này</span>
+                      </button>
+                    </div>
+                  )}
+
                   <div className="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-600">
                     <span className="flex items-center gap-1">
                       <Clock className="w-3.5 h-3.5 text-slate-400" />
