@@ -162,13 +162,23 @@ export default function MapView({
       >
         <MapController center={activeCenter} zoom={activeZoom} />
 
-        {/* Clean CartoDB Positron / Voyager Base Tiles: ONLY shows roads, rivers, terrain. ZERO default business/POI clutter */}
-        <TileLayer
-          attribution='&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-          subdomains="abcd"
-          maxZoom={20}
-        />
+        {/* Mapbox Clean Tiles (or Fallback if no token provided) */}
+        {process.env.NEXT_PUBLIC_MAPBOX_TOKEN ? (
+          <TileLayer
+            attribution='&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a>'
+            url={`https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/{z}/{x}/{y}?access_token=${process.env.NEXT_PUBLIC_MAPBOX_TOKEN}`}
+            tileSize={512}
+            zoomOffset={-1}
+            maxZoom={20}
+          />
+        ) : (
+          <TileLayer
+            attribution='&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+            subdomains="abcd"
+            maxZoom={20}
+          />
+        )}
 
         {/* Route Polyline (Road Path) */}
         {routeGeometry && routeGeometry.length >= 2 && (
