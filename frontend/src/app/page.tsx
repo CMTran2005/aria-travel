@@ -6,59 +6,65 @@ import { supabase } from "@/lib/supabase";
 import { fetchPOIs, updatePOILocation } from "@/lib/api";
 import { User } from "@supabase/supabase-js";
 import dynamic from "next/dynamic";
-import { Star, Clock, MapPin, Compass, Search, Info, Tag, SlidersHorizontal, Layers, ChevronLeft, ChevronRight, X as XIcon } from "lucide-react";
+import { Star, Clock, MapPin, Compass, Search, Info, Tag, SlidersHorizontal, Layers, ChevronLeft, ChevronRight, Globe, X as XIcon } from "lucide-react";
 import PoiDetailModal from "@/components/poi/PoiDetailModal";
 import { POI } from "@/components/map/MapView";
-import CustomSelect, { CustomSelectGroup } from "@/components/ui/CustomSelect";
+import CustomSelect, { CustomSelectGroup, CustomSelectOption } from "@/components/ui/CustomSelect";
 import HeaderSettings from "@/components/ui/HeaderSettings";
 import { useAppSettings } from "@/context/AppSettingsContext";
 import { formatCostVi } from "@/lib/formatters";
+import { REGIONS_DATA } from "@/lib/planConstants";
 
 const CITY_COORDINATES: Record<string, { lat: number; lon: number; zoom: number }> = {
+  // Miền Bắc
+  "Hà Nội": { lat: 21.0285, lon: 105.8542, zoom: 13 },
+  "Hải Phòng": { lat: 20.8449, lon: 106.6881, zoom: 13 },
+  "Quảng Ninh": { lat: 20.9500, lon: 107.0800, zoom: 12 },
+  "Lào Cai": { lat: 22.4856, lon: 103.9707, zoom: 13 },
+  "Ninh Bình": { lat: 20.2506, lon: 105.9745, zoom: 13 },
+  "Tuyên Quang": { lat: 21.8234, lon: 105.2155, zoom: 12 },
+  "Phú Thọ": { lat: 21.3228, lon: 105.4019, zoom: 12 },
+  "Thái Nguyên": { lat: 21.5942, lon: 105.8482, zoom: 13 },
+  "Bắc Ninh": { lat: 21.1861, lon: 106.0763, zoom: 13 },
+  "Hưng Yên": { lat: 20.6464, lon: 106.0511, zoom: 13 },
+  "Lạng Sơn": { lat: 21.8537, lon: 106.7615, zoom: 13 },
+  "Cao Bằng": { lat: 22.6666, lon: 106.2639, zoom: 13 },
+  "Lai Châu": { lat: 22.3963, lon: 103.4582, zoom: 13 },
+  "Điện Biên": { lat: 21.3860, lon: 103.0230, zoom: 13 },
+  "Sơn La": { lat: 21.3256, lon: 103.9188, zoom: 13 },
+
+  // Miền Trung
+  "Huế": { lat: 16.4637, lon: 107.5909, zoom: 14 },
+  "Đà Nẵng": { lat: 16.0544, lon: 108.2022, zoom: 13 },
+  "Khánh Hòa": { lat: 12.2388, lon: 109.1967, zoom: 13 },
+  "Gia Lai": { lat: 13.9833, lon: 108.0000, zoom: 12 },
+  "Quảng Trị": { lat: 16.8163, lon: 107.1044, zoom: 12 },
+  "Quảng Ngãi": { lat: 15.1205, lon: 108.7923, zoom: 13 },
+  "Thanh Hóa": { lat: 19.8067, lon: 105.7852, zoom: 13 },
+  "Nghệ An": { lat: 18.6796, lon: 105.6813, zoom: 13 },
+  "Hà Tĩnh": { lat: 18.3560, lon: 105.9059, zoom: 13 },
+
+  // Tây Nguyên & Đông Nam Bộ
+  "TP. Hồ Chí Minh": { lat: 10.7769, lon: 106.7009, zoom: 13 },
+  "Lâm Đồng": { lat: 11.9404, lon: 108.4583, zoom: 13 },
+  "Đắk Lắk": { lat: 12.6667, lon: 108.0500, zoom: 13 },
+  "Đồng Nai": { lat: 10.9574, lon: 106.8427, zoom: 12 },
+  "Tây Ninh": { lat: 11.3100, lon: 106.0983, zoom: 13 },
+
+  // Tây Nam Bộ
+  "Cần Thơ": { lat: 10.0452, lon: 105.7469, zoom: 13 },
+  "An Giang": { lat: 10.3759, lon: 105.4185, zoom: 12 },
+  "Cà Mau": { lat: 9.1769, lon: 105.1524, zoom: 13 },
+  "Vĩnh Long": { lat: 10.2537, lon: 105.9722, zoom: 13 },
+  "Đồng Tháp": { lat: 10.4602, lon: 105.6328, zoom: 13 },
+
+  // Di sản quen thuộc
   "Hội An": { lat: 15.8775, lon: 108.3285, zoom: 15 },
   "Đà Lạt": { lat: 11.9404, lon: 108.4583, zoom: 14 },
-  "Đà Nẵng": { lat: 16.0544, lon: 108.2022, zoom: 13 },
-  "Huế": { lat: 16.4637, lon: 107.5909, zoom: 14 },
-  "Hà Nội": { lat: 21.0285, lon: 105.8542, zoom: 13 },
-  "TP. Hồ Chí Minh": { lat: 10.8231, lon: 106.6297, zoom: 13 },
   "Nha Trang": { lat: 12.2388, lon: 109.1967, zoom: 14 },
   "Sa Pa": { lat: 22.3364, lon: 103.8438, zoom: 14 },
-  "Ninh Bình": { lat: 20.2506, lon: 105.9745, zoom: 13 },
   "Phú Quốc": { lat: 10.2899, lon: 103.9840, zoom: 12 },
 };
-
-const CITY_SELECT_GROUPS: CustomSelectGroup[] = [
-  {
-    label: "Miền Trung & Di sản",
-    options: [
-      { value: "Hội An", label: "Hội An", desc: "Phố cổ UNESCO, di sản, ẩm thực" },
-      { value: "Đà Nẵng", label: "Đà Nẵng", desc: "Cầu Rồng, biển Mỹ Khê, Sơn Trà" },
-      { value: "Huế", label: "Huế", desc: "Cố đô, lăng tẩm hoàng gia, nhã nhạc" },
-      { value: "Nha Trang", label: "Nha Trang", desc: "Vịnh biển, lặn ngắm san hô" },
-    ],
-  },
-  {
-    label: "Tây Nguyên",
-    options: [
-      { value: "Đà Lạt", label: "Đà Lạt", desc: "Thành phố ngàn hoa, thung lũng, cafe săn mây" },
-    ],
-  },
-  {
-    label: "Miền Bắc",
-    options: [
-      { value: "Hà Nội", label: "Hà Nội", desc: "Thủ đô nghìn năm văn hiến, 36 phố phường" },
-      { value: "Sa Pa", label: "Sa Pa", desc: "Ruộng bậc thang kỳ vĩ, Fansipan" },
-      { value: "Ninh Bình", label: "Ninh Bình", desc: "Tràng An non nước hữu tình" },
-    ],
-  },
-  {
-    label: "Miền Nam & Đảo",
-    options: [
-      { value: "TP. Hồ Chí Minh", label: "TP. Hồ Chí Minh", desc: "Đô thị sôi động, mua sắm & ẩm thực" },
-      { value: "Phú Quốc", label: "Phú Quốc", desc: "Đảo ngọc nghỉ dưỡng, biển bãi Sao" },
-    ],
-  },
-];
 
 
 const MapView = dynamic(() => import("@/components/map/MapView"), {
@@ -73,7 +79,11 @@ const MapView = dynamic(() => import("@/components/map/MapView"), {
 export default function HomePage() {
   const { theme, t, lang, currency, formatMoney } = useAppSettings();
   const [user, setUser] = useState<User | null>(null);
-  const [selectedCity, setSelectedCity] = useState<string>("Hội An");
+
+  // Region and City selection (cascading like in Plan page)
+  const [selectedRegionId, setSelectedRegionId] = useState<string>("mien-bac");
+  const [selectedCity, setSelectedCity] = useState<string>("Hà Nội");
+
   const [pois, setPois] = useState<POI[]>([]);
   const [selectedPOI, setSelectedPOI] = useState<POI | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
@@ -84,6 +94,45 @@ export default function HomePage() {
 
   // Ref for horizontal mouse wheel scrolling on tags container
   const tagScrollRef = useRef<HTMLDivElement>(null);
+
+  // Cascading Region and City groups based on REGIONS_DATA
+  const regionSelectGroups: CustomSelectGroup[] = useMemo(() => [
+    {
+      label: "Trong nước",
+      options: REGIONS_DATA.filter((r) => r.scope === "domestic").map((r) => ({
+        value: r.id,
+        label: r.name,
+      })),
+    },
+    {
+      label: "Quốc tế",
+      options: REGIONS_DATA.filter((r) => r.scope === "international").map((r) => ({
+        value: r.id,
+        label: r.name,
+      })),
+    },
+  ], []);
+
+  const currentRegion = useMemo(() => {
+    return REGIONS_DATA.find((r) => r.id === selectedRegionId) || REGIONS_DATA[0];
+  }, [selectedRegionId]);
+
+  const citySelectOptions: CustomSelectOption[] = useMemo(() => {
+    return currentRegion.cities.map((c) => ({
+      value: c.name,
+      label: c.name,
+      desc: c.desc,
+    }));
+  }, [currentRegion]);
+
+  const handleRegionChange = (newRegionId: string) => {
+    setSelectedRegionId(newRegionId);
+    const targetRegion = REGIONS_DATA.find((r) => r.id === newRegionId) || REGIONS_DATA[0];
+    if (targetRegion.cities.length > 0) {
+      const firstCity = targetRegion.cities[0].name;
+      handleCityChange(firstCity);
+    }
+  };
 
 
   useEffect(() => {
@@ -493,15 +542,26 @@ export default function HomePage() {
                 </div>
               </div>
 
-              {/* City selector dropdown integrated right inside toolbar */}
-              <div className="w-56 shrink-0">
-                <CustomSelect
-                  icon={<MapPin className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />}
-                  value={selectedCity}
-                  onChange={handleCityChange}
-                  groups={CITY_SELECT_GROUPS}
-                  placeholder={t("Chọn thành phố...", "Choose city...")}
-                />
+              {/* Cascading Region & City selectors integrated right inside toolbar */}
+              <div className="flex items-center gap-2 shrink-0">
+                <div className="w-40 sm:w-44">
+                  <CustomSelect
+                    icon={<Globe className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />}
+                    value={selectedRegionId}
+                    onChange={handleRegionChange}
+                    groups={regionSelectGroups}
+                    placeholder={t("Khu vực...", "Region...")}
+                  />
+                </div>
+                <div className="w-44 sm:w-52">
+                  <CustomSelect
+                    icon={<MapPin className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />}
+                    value={selectedCity}
+                    onChange={handleCityChange}
+                    options={citySelectOptions}
+                    placeholder={t("Chọn tỉnh/thành...", "Choose province...")}
+                  />
+                </div>
               </div>
             </div>
 
