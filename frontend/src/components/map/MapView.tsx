@@ -162,10 +162,11 @@ export default function MapView({
       >
         <MapController center={activeCenter} zoom={activeZoom} />
 
-        {/* Clean Google Maps Base Tiles WITHOUT Business/POI clutter: lyrs=r */}
+        {/* Clean CartoDB Positron / Voyager Base Tiles: ONLY shows roads, rivers, terrain. ZERO default business/POI clutter */}
         <TileLayer
-          attribution='&copy; <a href="https://maps.google.com">Google Maps</a>'
-          url="https://mt1.google.com/vt/lyrs=r&x={x}&y={y}&z={z}"
+          attribution='&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+          url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+          subdomains="abcd"
           maxZoom={20}
         />
 
