@@ -15,7 +15,7 @@ export interface RegionData {
 export const REGIONS_DATA: RegionData[] = [
   {
     id: "mien-bac",
-    name: "Miền Bắc (15 Tỉnh/Thành)",
+    name: "Miền Bắc",
     scope: "domestic",
     cities: [
       { name: "Hà Nội", desc: "Thủ đô nghìn năm văn hiến, 36 phố phường, trung tâm văn hóa và ẩm thực tinh hoa" },
@@ -37,7 +37,7 @@ export const REGIONS_DATA: RegionData[] = [
   },
   {
     id: "mien-trung",
-    name: "Miền Trung (9 Tỉnh/Thành)",
+    name: "Miền Trung",
     scope: "domestic",
     cities: [
       { name: "Huế", desc: "Cố đô trầm mặc, Đại Nội uy nghiêm, lăng tẩm hoàng gia và dòng sông Hương êm đềm" },
@@ -53,7 +53,7 @@ export const REGIONS_DATA: RegionData[] = [
   },
   {
     id: "dong-nam-bo-tay-nguyen",
-    name: "Tây Nguyên & Đông Nam Bộ (5 Tỉnh/Thành)",
+    name: "Đông Nam Bộ & Tây Nguyên",
     scope: "domestic",
     cities: [
       { name: "TP. Hồ Chí Minh", desc: "Đô thị sôi động bậc nhất, nhịp sống đêm rực rỡ, bãi biển Vũng Tàu và khu nghỉ dưỡng Hồ Tràm" },
@@ -65,7 +65,7 @@ export const REGIONS_DATA: RegionData[] = [
   },
   {
     id: "dong-bang-song-cuu-long",
-    name: "Tây Nam Bộ (5 Tỉnh/Thành)",
+    name: "Tây Nam Bộ",
     scope: "domestic",
     cities: [
       { name: "Cần Thơ", desc: "Tây Đô sông nước, nét văn hóa chợ nổi Cái Răng, bến Ninh Kiều và miệt vườn trĩu quả" },
